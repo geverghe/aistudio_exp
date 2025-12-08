@@ -1019,17 +1019,40 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                                 </div>
                                                             )}
                                                             {(prop.aspects?.length || 0) > 0 && (
-                                                                <div className="flex flex-wrap gap-1">
+                                                                <div className="space-y-1">
                                                                     {prop.aspects?.map(aspect => {
                                                                         const aspectType = AVAILABLE_ASPECT_TYPES.find(at => at.id === aspect.aspectTypeId);
-                                                                        const valueStr = Object.entries(aspect.values || {})
-                                                                            .filter(([_, v]) => v !== undefined && v !== '')
-                                                                            .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
-                                                                            .join(', ');
+                                                                        const valueEntries = Object.entries(aspect.values || {}).filter(([_, v]) => v !== undefined && v !== '');
+                                                                        const isPropAspectExpanded = expandedPropertyId === `prop-aspect-${prop.id}-${aspect.aspectTypeId}`;
                                                                         return (
-                                                                            <span key={aspect.aspectTypeId} className="px-1.5 py-0.5 bg-green-50 text-green-600 rounded text-[10px]">
-                                                                                {aspectType?.name || aspect.aspectTypeId}{valueStr ? ` (${valueStr})` : ''}
-                                                                            </span>
+                                                                            <div key={aspect.aspectTypeId} className="border border-green-100 rounded overflow-hidden">
+                                                                                <div 
+                                                                                    className="px-2 py-1 bg-green-50/50 cursor-pointer hover:bg-green-50 transition-colors flex items-center justify-between"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setExpandedPropertyId(isPropAspectExpanded ? null : `prop-aspect-${prop.id}-${aspect.aspectTypeId}`);
+                                                                                    }}
+                                                                                >
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <ChevronRight 
+                                                                                            size={10} 
+                                                                                            className={`text-green-400 transition-transform ${isPropAspectExpanded ? 'rotate-90' : ''}`}
+                                                                                        />
+                                                                                        <span className="text-[10px] font-medium text-green-700">{aspectType?.name || aspect.aspectTypeId}</span>
+                                                                                    </div>
+                                                                                    <span className="text-[8px] text-green-500">{valueEntries.length} values</span>
+                                                                                </div>
+                                                                                {isPropAspectExpanded && valueEntries.length > 0 && (
+                                                                                    <div className="px-2 py-1.5 bg-white border-t border-green-100 space-y-0.5">
+                                                                                        {valueEntries.map(([key, val]) => (
+                                                                                            <div key={key} className="flex gap-1 text-[10px]">
+                                                                                                <span className="text-gray-400 capitalize">{key.replace(/_/g, ' ')}:</span>
+                                                                                                <span className="text-gray-600">{String(val)}</span>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
                                                                         );
                                                                     })}
                                                                 </div>
