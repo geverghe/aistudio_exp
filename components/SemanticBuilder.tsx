@@ -3,7 +3,7 @@ import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssign
 import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag } from 'lucide-react';
 import { suggestEntitiesFromDescription } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
-import { AspectSelector } from './AspectSelector';
+import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
 import { GlossarySelector } from './GlossarySelector';
 
 // Mock Schema for BigQuery Tables to power the dropdowns
@@ -657,15 +657,28 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                             <Tag size={16} className="text-green-500" />
                                             Data Aspects
                                         </h4>
-                                        <div className="space-y-2">
-                                            {entity.aspects?.map(aspect => (
-                                                <div key={aspect.id} className="flex items-start gap-2 text-xs">
-                                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded font-medium shrink-0">
-                                                        {aspect.type}
-                                                    </span>
-                                                    <span className="text-gray-600">{aspect.value}</span>
-                                                </div>
-                                            ))}
+                                        <div className="space-y-3">
+                                            {entity.aspects?.map(aspect => {
+                                                const aspectType = AVAILABLE_ASPECT_TYPES.find(at => at.id === aspect.aspectTypeId);
+                                                const valueEntries = Object.entries(aspect.values || {}).filter(([_, v]) => v !== undefined && v !== '');
+                                                return (
+                                                    <div key={aspect.aspectTypeId} className="text-xs">
+                                                        <div className="px-2 py-1 bg-green-100 text-green-700 rounded font-medium inline-block mb-1">
+                                                            {aspectType?.name || aspect.aspectTypeId}
+                                                        </div>
+                                                        {valueEntries.length > 0 && (
+                                                            <div className="ml-2 space-y-1 text-gray-600">
+                                                                {valueEntries.map(([key, val]) => (
+                                                                    <div key={key} className="flex gap-2">
+                                                                        <span className="text-gray-400">{key.replace(/_/g, ' ')}:</span>
+                                                                        <span>{String(val)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -730,11 +743,18 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                             )}
                                                             {(prop.aspects?.length || 0) > 0 && (
                                                                 <div className="flex flex-wrap gap-1">
-                                                                    {prop.aspects?.map(aspect => (
-                                                                        <span key={aspect.id} className="px-1.5 py-0.5 bg-green-50 text-green-600 rounded text-[10px]">
-                                                                            {aspect.type}: {aspect.value}
-                                                                        </span>
-                                                                    ))}
+                                                                    {prop.aspects?.map(aspect => {
+                                                                        const aspectType = AVAILABLE_ASPECT_TYPES.find(at => at.id === aspect.aspectTypeId);
+                                                                        const valueStr = Object.entries(aspect.values || {})
+                                                                            .filter(([_, v]) => v !== undefined && v !== '')
+                                                                            .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+                                                                            .join(', ');
+                                                                        return (
+                                                                            <span key={aspect.aspectTypeId} className="px-1.5 py-0.5 bg-green-50 text-green-600 rounded text-[10px]">
+                                                                                {aspectType?.name || aspect.aspectTypeId}{valueStr ? ` (${valueStr})` : ''}
+                                                                            </span>
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             )}
                                                         </div>
