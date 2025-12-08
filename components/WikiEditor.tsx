@@ -45,8 +45,15 @@ export const WikiEditor: React.FC<WikiEditorProps> = ({
     setPreviewMode(false);
   };
 
+  const escapeHtml = (text: string) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+
   const renderMarkdown = (text: string) => {
-    return text
+    const escaped = escapeHtml(text);
+    return escaped
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>')
