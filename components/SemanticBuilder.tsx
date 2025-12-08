@@ -44,7 +44,7 @@ type Selection =
   | { type: 'RELATIONSHIP'; id: string }
   | null;
 
-type ViewMode = 'GRAPH' | 'AUTHORING' | 'FULL_PAGE_ENTITY';
+type ViewMode = 'GRAPH' | 'AUTHORING' | 'FULL_PAGE_ENTITY' | 'DEPLOY';
 
 export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ 
   models, 
@@ -81,9 +81,6 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
   const [editingBindingId, setEditingBindingId] = useState<string | null>(null);
   const [tempBindingValue, setTempBindingValue] = useState("");
 
-  // Deploy Modal State
-  const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
-  
   // Sidebar Tabs
   const [sidebarTab, setSidebarTab] = useState<'dashboard' | 'configuration'>('dashboard');
   
@@ -275,6 +272,15 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
             }} 
             availableColumns={availableColumns}
             currentEntityTableName={currentEntityTableName}
+          />
+      );
+  }
+
+  if (viewMode === 'DEPLOY' && model) {
+      return (
+          <DeploymentPage 
+            model={model}
+            onBack={() => setViewMode('GRAPH')}
           />
       );
   }
@@ -605,7 +611,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
         {/* Floating Actions */}
         <div className="absolute top-4 right-4 flex gap-2 z-10">
             <button 
-                onClick={() => setIsDeployModalOpen(true)}
+                onClick={() => setViewMode('DEPLOY')}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
             >
                 <Rocket size={16} />
@@ -739,11 +745,6 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
              onClose={() => setIsLinkModalOpen(false)}
              onCreate={handleCreateLink}
           />
-      )}
-
-      {/* Deploy Modal */}
-      {isDeployModalOpen && (
-          <DeployModal onClose={() => setIsDeployModalOpen(false)} />
       )}
 
       {/* Model Description Editor Modal */}
@@ -2258,112 +2259,436 @@ const GraphView: React.FC<{
     );
 };
 
-const DeployModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const [engine, setEngine] = useState('BigQuery');
+// Deployment Page Component
+type DeployTarget = 'bigquery' | 'spanner' | 'looker' | null;
+
+const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = ({ model, onBack }) => {
+    const [selectedTarget, setSelectedTarget] = useState<DeployTarget>(null);
     const [project, setProject] = useState('');
     const [dataset, setDataset] = useState('');
+    const [instance, setInstance] = useState('');
+    const [lookerProject, setLookerProject] = useState('');
     const [isDeploying, setIsDeploying] = useState(false);
     const [deployed, setDeployed] = useState(false);
 
+    const targets = [
+        {
+            id: 'bigquery' as const,
+            name: 'BigQuery',
+            description: 'Deploy as BigQuery views and tables',
+            icon: <Database size={24} />,
+            color: 'from-blue-500 to-blue-700'
+        },
+        {
+            id: 'spanner' as const,
+            name: 'Spanner Graph',
+            description: 'Deploy as Spanner Graph database',
+            icon: <Layers size={24} />,
+            color: 'from-green-500 to-teal-600'
+        },
+        {
+            id: 'looker' as const,
+            name: 'Looker',
+            description: 'Generate LookML model definitions',
+            icon: <Eye size={24} />,
+            color: 'from-purple-500 to-indigo-600'
+        }
+    ];
+
     const handleDeploy = () => {
         setIsDeploying(true);
-        // Simulate API call
         setTimeout(() => {
             setIsDeploying(false);
             setDeployed(true);
-        }, 1500);
+        }, 2000);
+    };
+
+    const generateLookML = () => {
+        let lookml = `# Auto-generated LookML for ${model.name}\n`;
+        lookml += `# Generated: ${new Date().toISOString()}\n`;
+        lookml += `# Looker Project: ${lookerProject || 'project'}\n\n`;
+        
+        model.entities.forEach(entity => {
+            const viewName = entity.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+            lookml += `view: ${viewName} {\n`;
+            lookml += `  sql_table_name: \`${project || 'project'}.${dataset || 'dataset'}.${viewName}\` ;;\n\n`;
+            
+            if (entity.description) {
+                lookml += `  # ${entity.description}\n\n`;
+            }
+            
+            entity.properties.forEach(prop => {
+                const fieldType = prop.dataType === 'INTEGER' || prop.dataType === 'FLOAT' ? 'number' : 
+                                 prop.dataType === 'TIMESTAMP' || prop.dataType === 'DATE' ? 'time' : 'string';
+                const fieldName = prop.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                
+                lookml += `  dimension: ${fieldName} {\n`;
+                lookml += `    type: ${fieldType}\n`;
+                
+                // Generate SQL expression with proper fallback
+                const columnName = prop.binding 
+                    ? (prop.binding.split('.')[1] || fieldName) 
+                    : fieldName;
+                lookml += `    sql: \${TABLE}.${columnName} ;;\n`;
+                
+                if (prop.description) {
+                    const safeDesc = prop.description.replace(/"/g, '\\"').substring(0, 200);
+                    lookml += `    description: "${safeDesc}"\n`;
+                }
+                lookml += `  }\n\n`;
+            });
+            
+            lookml += `}\n\n`;
+        });
+        
+        // Generate model file reference
+        lookml += `# Model file: ${lookerProject || 'project'}.model.lkml\n`;
+        lookml += `# connection: "your_bq_connection"\n`;
+        lookml += `# include: "/*.view.lkml"\n`;
+        
+        return lookml;
     };
 
     if (deployed) {
         return (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                <div className="bg-white rounded-xl shadow-2xl w-[480px] p-8 text-center">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
-                        <Check size={32} />
+            <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="h-14 border-b border-gray-200 bg-white flex items-center px-6">
+                    <button onClick={onBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium">
+                        <ArrowLeft size={18} />
+                        Back to Model
+                    </button>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="bg-white rounded-2xl shadow-xl p-12 text-center max-w-md">
+                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600">
+                            <Check size={40} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-3">Deployment Successful!</h2>
+                        <p className="text-gray-600 mb-8">
+                            Your semantic model "{model.name}" has been deployed to {targets.find(t => t.id === selectedTarget)?.name}.
+                        </p>
+                        <button 
+                            onClick={onBack} 
+                            className="px-8 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+                        >
+                            Return to Model
+                        </button>
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">Deployment Successful</h2>
-                    <p className="text-gray-600 mb-6">Your semantic model has been deployed to {engine} and is ready for querying.</p>
-                    <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Done</button>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-[500px] overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                    <div className="flex items-center gap-2 text-gray-800 font-semibold">
-                        <Rocket size={18} className="text-blue-600"/>
-                        Deploy Semantic Model
-                    </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18}/></button>
+        <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-gray-100">
+            {/* Header */}
+            <div className="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-6">
+                <button onClick={onBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium">
+                    <ArrowLeft size={18} />
+                    Back to Model
+                </button>
+                <div className="flex items-center gap-2">
+                    <Rocket size={18} className="text-blue-600" />
+                    <span className="font-semibold text-gray-800">Deploy: {model.name}</span>
                 </div>
-                
-                <div className="p-6">
-                    <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800 flex gap-3 items-start">
-                        <Database size={18} className="shrink-0 mt-0.5"/>
-                        <p>We will create a graph deployed on one of the following engines to retrieve data.</p>
-                    </div>
+                <div className="w-32"></div>
+            </div>
 
-                    <div className="space-y-5">
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-8">
+                <div className="max-w-5xl mx-auto">
+                    {!selectedTarget ? (
+                        /* Target Selection */
                         <div>
-                            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">Pick engine</label>
-                            <div className="relative">
-                                <select 
-                                    value={engine} 
-                                    onChange={(e) => setEngine(e.target.value)}
-                                    className="w-full appearance-none bg-white border border-gray-300 rounded-lg py-2.5 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                >
-                                    <option value="BigQuery">BigQuery</option>
-                                    <option value="Spanner">Spanner</option>
-                                </select>
-                                <ChevronDown className="absolute right-3 top-3 text-gray-400 pointer-events-none" size={16}/>
+                            <div className="text-center mb-10">
+                                <h1 className="text-2xl font-bold text-gray-900 mb-2">Choose Deployment Target</h1>
+                                <p className="text-gray-500">Select where you want to deploy your semantic model</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {targets.map((target) => (
+                                    <button
+                                        key={target.id}
+                                        onClick={() => setSelectedTarget(target.id)}
+                                        className="bg-white rounded-2xl border border-gray-200 p-8 hover:shadow-xl hover:border-blue-300 transition-all text-left group"
+                                    >
+                                        <div className={`w-14 h-14 bg-gradient-to-br ${target.color} rounded-xl flex items-center justify-center text-white mb-5 shadow-lg`}>
+                                            {target.icon}
+                                        </div>
+                                        <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                                            {target.name}
+                                        </h3>
+                                        <p className="text-gray-500 text-sm">{target.description}</p>
+                                    </button>
+                                ))}
                             </div>
                         </div>
+                    ) : (
+                        /* Target Configuration */
+                        <div className="flex gap-8">
+                            {/* Left: Configuration */}
+                            <div className="w-96 shrink-0">
+                                <button
+                                    onClick={() => setSelectedTarget(null)}
+                                    className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6"
+                                >
+                                    <ArrowLeft size={14} />
+                                    Change target
+                                </button>
 
-                        {engine === 'BigQuery' && (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">Project</label>
-                                    <input 
-                                        type="text" 
-                                        value={project}
-                                        onChange={(e) => setProject(e.target.value)}
-                                        placeholder="e.g. my-gcp-project-id"
-                                        className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">Dataset</label>
-                                    <input 
-                                        type="text" 
-                                        value={dataset}
-                                        onChange={(e) => setDataset(e.target.value)}
-                                        placeholder="e.g. semantic_layer_dataset"
-                                        className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                    />
+                                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                                    <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                                        <div className={`w-12 h-12 bg-gradient-to-br ${targets.find(t => t.id === selectedTarget)?.color} rounded-xl flex items-center justify-center text-white shadow-sm`}>
+                                            {targets.find(t => t.id === selectedTarget)?.icon}
+                                        </div>
+                                        <div>
+                                            <h2 className="text-lg font-semibold text-gray-900">
+                                                {targets.find(t => t.id === selectedTarget)?.name}
+                                            </h2>
+                                            <p className="text-sm text-gray-500">Configure deployment settings</p>
+                                        </div>
+                                    </div>
+
+                                    {selectedTarget === 'bigquery' && (
+                                        <div className="space-y-5">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">GCP Project</label>
+                                                <input
+                                                    type="text"
+                                                    value={project}
+                                                    onChange={(e) => setProject(e.target.value)}
+                                                    placeholder="my-gcp-project"
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Dataset</label>
+                                                <input
+                                                    type="text"
+                                                    value={dataset}
+                                                    onChange={(e) => setDataset(e.target.value)}
+                                                    placeholder="semantic_layer"
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
+                                                <div className="font-medium mb-1">BigQuery Details</div>
+                                                <p className="text-blue-600 text-xs">
+                                                    Views will be created in: <code className="bg-blue-100 px-1 rounded">{project || 'project'}.{dataset || 'dataset'}</code>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedTarget === 'spanner' && (
+                                        <div className="space-y-5">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">GCP Project</label>
+                                                <input
+                                                    type="text"
+                                                    value={project}
+                                                    onChange={(e) => setProject(e.target.value)}
+                                                    placeholder="my-gcp-project"
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Instance ID</label>
+                                                <input
+                                                    type="text"
+                                                    value={instance}
+                                                    onChange={(e) => setInstance(e.target.value)}
+                                                    placeholder="my-spanner-instance"
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Database</label>
+                                                <input
+                                                    type="text"
+                                                    value={dataset}
+                                                    onChange={(e) => setDataset(e.target.value)}
+                                                    placeholder="semantic-graph-db"
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div className="bg-yellow-50 rounded-xl p-4 text-sm text-yellow-800">
+                                                <div className="font-medium mb-1">Spanner Graph Requirements</div>
+                                                <p className="text-yellow-600 text-xs">
+                                                    Instance must have Graph support enabled. Enterprise edition recommended.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedTarget === 'looker' && (
+                                        <div className="space-y-5">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Looker Project Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={lookerProject}
+                                                    onChange={(e) => setLookerProject(e.target.value)}
+                                                    placeholder="my_looker_project"
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Source Project (BigQuery)</label>
+                                                <input
+                                                    type="text"
+                                                    value={project}
+                                                    onChange={(e) => setProject(e.target.value)}
+                                                    placeholder="my-gcp-project"
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Source Dataset</label>
+                                                <input
+                                                    type="text"
+                                                    value={dataset}
+                                                    onChange={(e) => setDataset(e.target.value)}
+                                                    placeholder="source_dataset"
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div className="bg-purple-50 rounded-xl p-4 text-sm text-purple-800">
+                                                <div className="font-medium mb-1">LookML Generation</div>
+                                                <p className="text-purple-600 text-xs">
+                                                    View definitions will be generated from your semantic model entities.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="mt-6 pt-6 border-t border-gray-100">
+                                        <button
+                                            onClick={handleDeploy}
+                                            disabled={
+                                                isDeploying || 
+                                                (selectedTarget === 'bigquery' && (!project || !dataset)) ||
+                                                (selectedTarget === 'spanner' && (!project || !instance || !dataset)) ||
+                                                (selectedTarget === 'looker' && (!project || !dataset || !lookerProject))
+                                            }
+                                            className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        >
+                                            {isDeploying ? (
+                                                <>
+                                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                    Deploying...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Rocket size={18} />
+                                                    Deploy to {targets.find(t => t.id === selectedTarget)?.name}
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        )}
-                        
-                        {engine === 'Spanner' && (
-                            <div className="p-3 bg-yellow-50 text-yellow-800 text-xs rounded border border-yellow-100">
-                                Note: Spanner Graph requires a pre-provisioned instance with Graph support enabled.
-                            </div>
-                        )}
-                    </div>
-                </div>
 
-                <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
-                    <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
-                    <button 
-                        onClick={handleDeploy}
-                        disabled={(engine === 'BigQuery' && (!project || !dataset)) || isDeploying}
-                        className="px-6 py-2 text-sm bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-2 transition-colors"
-                    >
-                        {isDeploying ? 'Deploying...' : 'Confirm & Deploy'}
-                    </button>
+                            {/* Right: Preview */}
+                            <div className="flex-1">
+                                <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4">
+                                    {selectedTarget === 'looker' ? 'LookML Preview' : 'Deployment Preview'}
+                                </h3>
+                                
+                                {selectedTarget === 'looker' ? (
+                                    <div className="bg-gray-900 rounded-2xl p-6 h-[600px] overflow-auto">
+                                        <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">
+                                            {generateLookML()}
+                                        </pre>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                                        <h4 className="text-sm font-semibold text-gray-700 mb-4">Resources to be created</h4>
+                                        
+                                        <div className="space-y-3">
+                                            {model.entities.map((entity) => (
+                                                <div key={entity.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                                                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                                                        <TableIcon size={18} />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="font-medium text-gray-900 text-sm">{entity.name}</div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {selectedTarget === 'bigquery' && (
+                                                                <code>{project || 'project'}.{dataset || 'dataset'}.{entity.name.toLowerCase().replace(/\s+/g, '_')}</code>
+                                                            )}
+                                                            {selectedTarget === 'spanner' && (
+                                                                <code>Node: {entity.name} ({entity.properties.length} properties)</code>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-xs text-gray-400">
+                                                        {entity.properties.length} cols
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {model.relationships.length > 0 && (
+                                            <div className="mt-6 pt-6 border-t border-gray-100">
+                                                <h4 className="text-sm font-semibold text-gray-700 mb-4">Relationships</h4>
+                                                <div className="space-y-2">
+                                                    {model.relationships.map((rel) => {
+                                                        const source = model.entities.find(e => e.id === rel.sourceEntityId);
+                                                        const target = model.entities.find(e => e.id === rel.targetEntityId);
+                                                        return (
+                                                            <div key={rel.id} className="flex items-center gap-2 text-sm text-gray-600 p-2 bg-gray-50 rounded-lg">
+                                                                <span className="font-medium">{source?.name}</span>
+                                                                <ArrowRight size={14} className="text-gray-400" />
+                                                                <span className="font-medium">{target?.name}</span>
+                                                                <span className="text-xs text-gray-400 ml-auto">{rel.type}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {selectedTarget === 'bigquery' && (
+                                            <div className="mt-6 pt-6 border-t border-gray-100">
+                                                <h4 className="text-sm font-semibold text-gray-700 mb-3">BigQuery Configuration</h4>
+                                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Project</div>
+                                                        <div className="font-mono text-gray-900">{project || '—'}</div>
+                                                    </div>
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Dataset</div>
+                                                        <div className="font-mono text-gray-900">{dataset || '—'}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {selectedTarget === 'spanner' && (
+                                            <div className="mt-6 pt-6 border-t border-gray-100">
+                                                <h4 className="text-sm font-semibold text-gray-700 mb-3">Spanner Configuration</h4>
+                                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Project</div>
+                                                        <div className="font-mono text-gray-900">{project || '—'}</div>
+                                                    </div>
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Instance</div>
+                                                        <div className="font-mono text-gray-900">{instance || '—'}</div>
+                                                    </div>
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Database</div>
+                                                        <div className="font-mono text-gray-900">{dataset || '—'}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
