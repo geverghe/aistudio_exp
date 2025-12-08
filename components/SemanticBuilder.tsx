@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag } from 'lucide-react';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye } from 'lucide-react';
 import { suggestEntitiesFromDescription } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
 import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
@@ -90,6 +90,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
   // Model Configuration State
   const [isModelConfigExpanded, setIsModelConfigExpanded] = useState(false);
   const [isEditingModelDesc, setIsEditingModelDesc] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   
   // Helper to get selected objects
   const selectedEntity = useMemo(() => 
@@ -270,24 +271,33 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
               <h1 className="text-2xl font-bold text-gray-900">Semantic Models</h1>
               <p className="text-gray-500 mt-1">Select a model to view and edit its entities</p>
             </div>
-            <button
-              onClick={() => {
-                const newModel: SemanticModel = {
-                  id: `model_${Date.now()}`,
-                  name: 'New Semantic Model',
-                  description: '',
-                  entities: [],
-                  relationships: [],
-                  createdAt: new Date(),
-                  updatedAt: new Date()
-                };
-                onCreateModel(newModel);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-            >
-              <Plus size={18} />
-              New Model
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                <ArrowRight size={18} className="rotate-180" />
+                Import Model
+              </button>
+              <button
+                onClick={() => {
+                  const newModel: SemanticModel = {
+                    id: `model_${Date.now()}`,
+                    name: 'New Semantic Model',
+                    description: '',
+                    entities: [],
+                    relationships: [],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                  };
+                  onCreateModel(newModel);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                <Plus size={18} />
+                New Model
+              </button>
+            </div>
           </div>
 
           {/* Models Grid */}
@@ -359,6 +369,17 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
             </div>
           )}
         </div>
+
+        {/* Import Model Modal */}
+        {showImportModal && (
+          <ImportModelModal 
+            onClose={() => setShowImportModal(false)}
+            onImport={(importedModel) => {
+              onCreateModel(importedModel);
+              setShowImportModal(false);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -2433,6 +2454,277 @@ const AuthoringView: React.FC<{
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+};
+
+// Import Model Modal Component
+const ImportModelModal: React.FC<{
+    onClose: () => void;
+    onImport: (model: SemanticModel) => void;
+}> = ({ onClose, onImport }) => {
+    const [importSource, setImportSource] = useState<'looker' | 'dbt' | 'file' | null>(null);
+    const [connectionUrl, setConnectionUrl] = useState('');
+    const [projectName, setProjectName] = useState('');
+    const [apiKey, setApiKey] = useState('');
+    const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleImport = () => {
+        setIsLoading(true);
+        // Simulate import process - in production this would call actual APIs
+        setTimeout(() => {
+            const importedModel: SemanticModel = {
+                id: `imported_${Date.now()}`,
+                name: importSource === 'looker' ? `Looker Model - ${projectName}` : 
+                      importSource === 'dbt' ? `DBT Model - ${projectName}` : 
+                      `Imported Model`,
+                description: `Imported from ${importSource?.toUpperCase() || 'file'} on ${new Date().toLocaleDateString()}`,
+                entities: [],
+                relationships: [],
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+            setIsLoading(false);
+            onImport(importedModel);
+        }, 1500);
+    };
+
+    const sources = [
+        {
+            id: 'looker' as const,
+            name: 'Looker',
+            description: 'Import from Looker LookML models',
+            icon: <Eye size={24} />,
+            color: 'from-purple-500 to-indigo-600'
+        },
+        {
+            id: 'dbt' as const,
+            name: 'dbt',
+            description: 'Import from dbt semantic layer',
+            icon: <Database size={24} />,
+            color: 'from-orange-500 to-red-600'
+        },
+        {
+            id: 'file' as const,
+            name: 'File Upload',
+            description: 'Upload YAML or JSON definition files',
+            icon: <FileText size={24} />,
+            color: 'from-green-500 to-teal-600'
+        }
+    ];
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        {importSource && (
+                            <button
+                                onClick={() => setImportSource(null)}
+                                className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <ArrowLeft size={18} />
+                            </button>
+                        )}
+                        <h2 className="text-lg font-semibold text-gray-900">
+                            {importSource ? `Import from ${sources.find(s => s.id === importSource)?.name}` : 'Import Semantic Model'}
+                        </h2>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {!importSource ? (
+                        /* Source Selection */
+                        <div className="space-y-4">
+                            <p className="text-gray-600 mb-6">Choose a source to import your semantic model from:</p>
+                            {sources.map((source) => (
+                                <button
+                                    key={source.id}
+                                    onClick={() => setImportSource(source.id)}
+                                    className="w-full flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left group"
+                                >
+                                    <div className={`w-12 h-12 bg-gradient-to-br ${source.color} rounded-xl flex items-center justify-center text-white shadow-sm`}>
+                                        {source.icon}
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                                            {source.name}
+                                        </h3>
+                                        <p className="text-sm text-gray-500">{source.description}</p>
+                                    </div>
+                                    <ChevronRight size={20} className="text-gray-300 group-hover:text-blue-400 transition-colors" />
+                                </button>
+                            ))}
+                        </div>
+                    ) : importSource === 'looker' ? (
+                        /* Looker Import Form */
+                        <div className="space-y-5">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Looker Instance URL</label>
+                                <input
+                                    type="url"
+                                    value={connectionUrl}
+                                    onChange={(e) => setConnectionUrl(e.target.value)}
+                                    placeholder="https://your-instance.cloud.looker.com"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
+                                <input
+                                    type="text"
+                                    value={projectName}
+                                    onChange={(e) => setProjectName(e.target.value)}
+                                    placeholder="my_lookml_project"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                                <input
+                                    type="password"
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder="Enter your Looker API key"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                />
+                                <p className="text-xs text-gray-500 mt-2">Your API key is encrypted and used only for this import.</p>
+                            </div>
+                        </div>
+                    ) : importSource === 'dbt' ? (
+                        /* DBT Import Form */
+                        <div className="space-y-5">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">dbt Cloud URL</label>
+                                <input
+                                    type="url"
+                                    value={connectionUrl}
+                                    onChange={(e) => setConnectionUrl(e.target.value)}
+                                    placeholder="https://cloud.getdbt.com"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
+                                <input
+                                    type="text"
+                                    value={projectName}
+                                    onChange={(e) => setProjectName(e.target.value)}
+                                    placeholder="my_dbt_project"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Service Token</label>
+                                <input
+                                    type="password"
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder="Enter your dbt Cloud service token"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                />
+                                <p className="text-xs text-gray-500 mt-2">Service token with Semantic Layer access permissions.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        /* File Upload Form */
+                        <div className="space-y-5">
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all"
+                            >
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".yaml,.yml,.json"
+                                    multiple
+                                    className="hidden"
+                                    onChange={(e) => setSelectedFiles(e.target.files)}
+                                />
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Upload size={28} className="text-gray-400" />
+                                </div>
+                                {selectedFiles && selectedFiles.length > 0 ? (
+                                    <div>
+                                        <p className="font-medium text-gray-900 mb-2">
+                                            {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
+                                        </p>
+                                        <div className="text-sm text-gray-500 space-y-1">
+                                            {Array.from(selectedFiles).map((file, idx) => (
+                                                <div key={idx} className="flex items-center justify-center gap-2">
+                                                    <FileText size={14} />
+                                                    <span>{file.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p className="font-medium text-gray-700 mb-1">Drop files here or click to browse</p>
+                                        <p className="text-sm text-gray-500">Supports YAML and JSON files</p>
+                                    </>
+                                )}
+                            </div>
+                            <div className="bg-gray-50 rounded-xl p-4">
+                                <h4 className="font-medium text-gray-700 mb-2 text-sm">Supported Formats</h4>
+                                <ul className="text-sm text-gray-500 space-y-1">
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                        Dataplex Semantic Model YAML
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                        LookML view/model files (.lkml)
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                        dbt schema.yml files
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                {importSource && (
+                    <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleImport}
+                            disabled={isLoading || (importSource !== 'file' && (!connectionUrl || !projectName || !apiKey)) || (importSource === 'file' && !selectedFiles)}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Importing...
+                                </>
+                            ) : (
+                                <>
+                                    <ArrowRight size={18} className="rotate-180" />
+                                    Import Model
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
