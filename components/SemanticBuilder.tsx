@@ -633,20 +633,42 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Glossary Terms */}
+                                {/* Glossary Terms - Collapsible */}
                                 {(entity.glossaryTerms?.length || 0) > 0 && (
-                                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                                        <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                            <BookOpen size={16} className="text-purple-500" />
-                                            Business Terms
-                                        </h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {entity.glossaryTerms?.map(term => (
-                                                <span key={term.id} className="px-2.5 py-1 bg-purple-50 text-purple-700 text-xs rounded-full border border-purple-200">
-                                                    {term.term}
-                                                </span>
-                                            ))}
+                                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                        <div 
+                                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between"
+                                            onClick={() => setExpandedPropertyId(expandedPropertyId === 'glossary' ? null : 'glossary')}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <ChevronRight 
+                                                    size={14} 
+                                                    className={`text-gray-400 transition-transform ${expandedPropertyId === 'glossary' ? 'rotate-90' : ''}`}
+                                                />
+                                                <BookOpen size={14} className="text-purple-500" />
+                                                <span className="text-sm font-medium text-gray-800">Business Terms</span>
+                                            </div>
+                                            <span className="text-xs text-gray-400">
+                                                {entity.glossaryTerms?.length} term{entity.glossaryTerms?.length !== 1 ? 's' : ''}
+                                            </span>
                                         </div>
+                                        {expandedPropertyId === 'glossary' && (
+                                            <div className="px-5 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50">
+                                                <div className="space-y-2">
+                                                    {entity.glossaryTerms?.map(term => (
+                                                        <div key={term.id} className="text-xs">
+                                                            <span className="font-medium text-purple-700">{term.name}</span>
+                                                            {term.domain && (
+                                                                <span className="ml-2 text-gray-400">({term.domain})</span>
+                                                            )}
+                                                            {term.description && (
+                                                                <p className="text-gray-600 mt-0.5">{term.description}</p>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -744,7 +766,7 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                                 <div className="flex flex-wrap gap-1">
                                                                     {prop.glossaryTerms?.map(term => (
                                                                         <span key={term.id} className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-[10px]">
-                                                                            {term.term}
+                                                                            {term.name}
                                                                         </span>
                                                                     ))}
                                                                 </div>
