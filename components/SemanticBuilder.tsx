@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye } from 'lucide-react';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical } from 'lucide-react';
 import { suggestEntitiesFromDescription } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
 import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
@@ -91,6 +91,10 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
   const [isModelConfigExpanded, setIsModelConfigExpanded] = useState(false);
   const [isEditingModelDesc, setIsEditingModelDesc] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showGitFileModal, setShowGitFileModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
   
   // Helper to get selected objects
   const selectedEntity = useMemo(() => 
@@ -107,6 +111,21 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
         searchInputRef.current.focus();
     }
   }, [isSearchVisible]);
+
+  // Click outside handler for settings menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
+        setShowSettingsMenu(false);
+      }
+    };
+    if (showSettingsMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSettingsMenu]);
 
   // Filter Entities
   const filteredEntities = useMemo(() => {
@@ -390,7 +409,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
       {/* Left Pane: Search/Navigator */}
       <div className="w-[280px] bg-white border-r border-gray-200 flex flex-col z-10 shrink-0">
          {/* Model Breadcrumb */}
-         <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
+         <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
            <button
              onClick={() => onSelectModel(null)}
              className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
@@ -400,6 +419,49 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
              <ChevronRight size={12} className="text-gray-300" />
              <span className="font-medium text-gray-700 truncate max-w-[160px]">{model.name}</span>
            </button>
+           
+           {/* Settings Menu */}
+           <div className="relative" ref={settingsMenuRef}>
+             <button
+               onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+               className="p-1.5 hover:bg-gray-200 rounded-md text-gray-500 hover:text-gray-700 transition-colors"
+               title="Model Settings"
+             >
+               <MoreVertical size={16} />
+             </button>
+             
+             {showSettingsMenu && (
+               <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                 <button
+                   onClick={() => {
+                     setShowGitFileModal(true);
+                     setShowSettingsMenu(false);
+                   }}
+                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                 >
+                   <GitCommit size={16} className="text-gray-400" />
+                   <div>
+                     <div className="font-medium">Change Git File</div>
+                     <div className="text-xs text-gray-400">Update source file reference</div>
+                   </div>
+                 </button>
+                 <div className="border-t border-gray-100 my-1"></div>
+                 <button
+                   onClick={() => {
+                     setShowDeleteConfirm(true);
+                     setShowSettingsMenu(false);
+                   }}
+                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                 >
+                   <Trash2 size={16} />
+                   <div>
+                     <div className="font-medium">Delete Model</div>
+                     <div className="text-xs text-red-400">Permanently remove this model</div>
+                   </div>
+                 </button>
+               </div>
+             )}
+           </div>
          </div>
          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between h-[52px]">
              {!isSearchVisible ? (
@@ -467,7 +529,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
                   {/* Git Reference */}
                   <div className="bg-blue-50 rounded-lg p-2 flex items-center gap-2">
                     <FileText size={12} className="text-blue-500" />
-                    <span className="text-[10px] text-blue-700 font-mono">models/{model.id}.yaml</span>
+                    <span className="text-[10px] text-blue-700 font-mono">{model.gitFile || `models/${model.id}.yaml`}</span>
                   </div>
                   
                   {/* Model Description */}
@@ -711,6 +773,59 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Model Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                  <Trash2 size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Model</h3>
+                  <p className="text-sm text-gray-500">This action cannot be undone</p>
+                </div>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete <span className="font-semibold">"{model.name}"</span>? 
+                All entities, relationships, and configurations will be permanently removed.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    onDeleteModel(model.id);
+                    setShowDeleteConfirm(false);
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center gap-2"
+                >
+                  <Trash2 size={16} />
+                  Delete Model
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Git File Modal */}
+      {showGitFileModal && (
+        <GitFileModal
+          model={model}
+          onClose={() => setShowGitFileModal(false)}
+          onSave={(gitFile) => {
+            setModel(prev => ({ ...prev, gitFile }));
+            setShowGitFileModal(false);
+          }}
+        />
       )}
 
     </div>
@@ -2725,6 +2840,112 @@ const ImportModelModal: React.FC<{
                         </button>
                     </div>
                 )}
+            </div>
+        </div>
+    );
+};
+
+// Git File Modal Component
+const GitFileModal: React.FC<{
+    model: SemanticModel;
+    onClose: () => void;
+    onSave: (gitFile: string) => void;
+}> = ({ model, onClose, onSave }) => {
+    const [gitFile, setGitFile] = useState(model.gitFile || `models/${model.id}.yaml`);
+    const [isValidating, setIsValidating] = useState(false);
+
+    const handleSave = () => {
+        setIsValidating(true);
+        setTimeout(() => {
+            setIsValidating(false);
+            onSave(gitFile);
+        }, 500);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600">
+                            <GitCommit size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900">Change Git File</h3>
+                            <p className="text-sm text-gray-500">Update the source file for this model</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-6">
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Git File Path</label>
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    value={gitFile}
+                                    onChange={(e) => setGitFile(e.target.value)}
+                                    placeholder="models/my-model.yaml"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono text-sm"
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            This is the file path in your repository where this semantic model definition is stored.
+                        </p>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">File Path Guidelines</h4>
+                        <ul className="text-sm text-gray-500 space-y-2">
+                            <li className="flex items-start gap-2">
+                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5"></div>
+                                Use relative paths from repository root
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5"></div>
+                                Recommended: <code className="bg-gray-200 px-1 rounded">models/</code> directory
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5"></div>
+                                Supported formats: .yaml, .yml, .json
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={!gitFile.trim() || isValidating}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        {isValidating ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                Validating...
+                            </>
+                        ) : (
+                            <>
+                                <Check size={16} />
+                                Save Changes
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     );

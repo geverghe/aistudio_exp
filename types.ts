@@ -89,6 +89,7 @@ export interface SemanticModel extends SemanticModelGraph {
   domain?: string;
   aspects?: AspectAssignment[];
   glossaryTerms?: GlossaryTerm[];
+  gitFile?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
