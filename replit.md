@@ -38,6 +38,8 @@ Uses React's built-in useState for local component state without external state 
 **Core Type System:**
 Defined in `types.ts` with TypeScript interfaces and enums:
 
+- **SemanticModel**: Container for a complete semantic model with metadata (id, name, description, domain, timestamps) plus entities and relationships
+- **SemanticModelCollection**: Collection of multiple semantic models managed at the app level
 - **Entity**: Represents business concepts (Product, Inventory, Revenue) with properties bound to physical data sources
 - **EntityType**: Enum distinguishing between ENTITY, DIMENSION, and FACT types
 - **Property**: Individual attributes of entities with data types, descriptions, and bindings to database columns
