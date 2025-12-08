@@ -10,12 +10,41 @@ export enum EntityType {
   FACT = 'FACT'
 }
 
+export interface AspectType {
+  id: string;
+  name: string;
+  description: string;
+  fields: { name: string; type: string; required?: boolean }[];
+}
+
+export interface AspectAssignment {
+  aspectTypeId: string;
+  values: Record<string, any>;
+}
+
+export interface GlossaryTerm {
+  id: string;
+  name: string;
+  description: string;
+  domain?: string;
+}
+
+export interface DescriptionHistory {
+  content: string;
+  timestamp: Date;
+  author?: string;
+}
+
 export interface Property {
   id: string;
   name: string;
   dataType: string;
   description: string;
-  binding?: string; // e.g., 'table.column_name'
+  overview?: string;
+  descriptionHistory?: DescriptionHistory[];
+  aspects?: AspectAssignment[];
+  glossaryTerms?: GlossaryTerm[];
+  binding?: string;
   isComputed?: boolean;
 }
 
@@ -23,6 +52,10 @@ export interface Entity {
   id: string;
   name: string;
   description: string;
+  overview?: string;
+  descriptionHistory?: DescriptionHistory[];
+  aspects?: AspectAssignment[];
+  glossaryTerms?: GlossaryTerm[];
   type: EntityType;
   properties: Property[];
   bindings?: {
