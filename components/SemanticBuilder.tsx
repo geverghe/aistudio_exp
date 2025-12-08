@@ -550,8 +550,8 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-8">
-                <div className="max-w-5xl mx-auto">
+            <div className="flex-1 overflow-auto p-8 min-h-0">
+                <div className="max-w-5xl mx-auto pb-8">
                     {activeTab === 'config' && (
                         <div className="space-y-6">
                             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
