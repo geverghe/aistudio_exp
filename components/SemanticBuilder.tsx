@@ -80,6 +80,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
   // Binding Edit State
   const [editingBindingId, setEditingBindingId] = useState<string | null>(null);
   const [tempBindingValue, setTempBindingValue] = useState("");
+  const [columnSearchModalPropId, setColumnSearchModalPropId] = useState<string | null>(null);
 
   // Sidebar Tabs
   const [sidebarTab, setSidebarTab] = useState<'dashboard' | 'configuration'>('dashboard');
@@ -700,6 +701,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
                                     setLinkingSourcePropId(propId);
                                     setIsLinkModalOpen(true);
                                 }}
+                                onColumnSearch={(propId) => setColumnSearchModalPropId(propId)}
                             />
                         ) : (
                             // DASHBOARD TAB CONTENT
@@ -746,6 +748,38 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
              onCreate={handleCreateLink}
           />
       )}
+
+      {/* Column Search Modal */}
+      {columnSearchModalPropId && selectedEntity && (() => {
+          const prop = selectedEntity.properties.find(p => p.id === columnSearchModalPropId);
+          if (!prop) return null;
+          return (
+              <ColumnSearchModal
+                  system={prop.bindingSystem || 'bigquery'}
+                  onClose={() => setColumnSearchModalPropId(null)}
+                  onSelect={(selection) => {
+                      const bindingStr = selection.dataset 
+                          ? `${selection.project}.${selection.dataset}.${selection.table}.${selection.column}`
+                          : `${selection.project}/${selection.instance}/${selection.database}.${selection.table}.${selection.column}`;
+                      setModel(prev => ({
+                          ...prev,
+                          entities: prev.entities.map(ent => {
+                              if (ent.id !== selectedEntity.id) return ent;
+                              return {
+                                  ...ent,
+                                  properties: ent.properties.map(p => 
+                                      p.id === columnSearchModalPropId 
+                                          ? { ...p, bindingProject: selection.project, bindingDataset: selection.dataset, bindingTable: selection.table, bindingColumn: selection.column, binding: bindingStr }
+                                          : p
+                                  )
+                              };
+                          })
+                      }));
+                      setColumnSearchModalPropId(null);
+                  }}
+              />
+          );
+      })()}
 
       {/* Model Description Editor Modal */}
       {isEditingModelDesc && (
@@ -946,6 +980,9 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
     const [activeTab, setActiveTab] = useState<'config' | 'dashboard'>('dashboard');
     const [expandedConfigSection, setExpandedConfigSection] = useState<'entity' | 'properties' | null>('entity');
     const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
+    const [columnSearchModalPropId, setColumnSearchModalPropId] = useState<string | null>(null);
+
+    const columnSearchProp = columnSearchModalPropId ? entity.properties.find(p => p.id === columnSearchModalPropId) : null;
 
     const addNewProperty = () => {
         const newProp: Property = {
@@ -1271,32 +1308,57 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                                         </button>
                                                                     </div>
                                                                     {(prop.bindingType || 'column') === 'column' ? (
-                                                                        <select
-                                                                            value={prop.binding || ''}
-                                                                            onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
-                                                                            className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-white"
-                                                                        >
-                                                                            <option value="">Select column...</option>
-                                                                            {availableColumns.map(col => (
-                                                                                <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
-                                                                                    {col.name} ({col.type})
-                                                                                </option>
-                                                                            ))}
-                                                                        </select>
+                                                                        <div className="space-y-2">
+                                                                            <div>
+                                                                                <label className="block text-xs text-gray-500 mb-1">System</label>
+                                                                                <select
+                                                                                    value={prop.bindingSystem || 'bigquery'}
+                                                                                    onChange={(e) => updateProperty(prop.id, { 
+                                                                                        bindingSystem: e.target.value as 'bigquery' | 'spanner',
+                                                                                        bindingProject: '',
+                                                                                        bindingDataset: '',
+                                                                                        bindingTable: '',
+                                                                                        bindingColumn: '',
+                                                                                        binding: ''
+                                                                                    })}
+                                                                                    className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-white"
+                                                                                >
+                                                                                    <option value="bigquery">BigQuery</option>
+                                                                                    <option value="spanner">Spanner</option>
+                                                                                </select>
+                                                                            </div>
+                                                                            <div>
+                                                                                <label className="block text-xs text-gray-500 mb-1">Table & Column</label>
+                                                                                <div 
+                                                                                    onClick={() => setColumnSearchModalPropId(prop.id)}
+                                                                                    className="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors flex items-center justify-between"
+                                                                                >
+                                                                                    {prop.binding ? (
+                                                                                        <span className="font-mono text-gray-700">{prop.binding}</span>
+                                                                                    ) : (
+                                                                                        <span className="text-gray-400">Click to search and select...</span>
+                                                                                    )}
+                                                                                    <Search size={14} className="text-gray-400" />
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
                                                                     ) : (
-                                                                        <textarea
-                                                                            value={prop.binding || ''}
-                                                                            onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
-                                                                            placeholder="Enter SQL expression, e.g.:&#10;CONCAT(table.first_name, ' ', table.last_name)"
-                                                                            className="w-full text-sm font-mono border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-gray-50 min-h-[60px] resize-y"
-                                                                        />
+                                                                        <>
+                                                                            <textarea
+                                                                                value={prop.binding || ''}
+                                                                                onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
+                                                                                placeholder="Enter SQL expression, e.g.:&#10;CONCAT(table.first_name, ' ', table.last_name)"
+                                                                                className="w-full text-sm font-mono border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-gray-50 min-h-[60px] resize-y"
+                                                                            />
+                                                                            <div className="mt-3">
+                                                                                <PropertyDefinitionEditor
+                                                                                    definition={prop.definition || ''}
+                                                                                    onChange={(definition) => updateProperty(prop.id, { definition })}
+                                                                                />
+                                                                            </div>
+                                                                        </>
                                                                     )}
                                                                 </div>
-
-                                                                <PropertyDefinitionEditor
-                                                                    definition={prop.definition || ''}
-                                                                    onChange={(definition) => updateProperty(prop.id, { definition })}
-                                                                />
 
                                                                 <WikiEditor
                                                                     content={prop.overview || prop.description}
@@ -1611,6 +1673,27 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                     )}
                 </div>
             </div>
+
+            {/* Column Search Modal */}
+            {columnSearchModalPropId && columnSearchProp && (
+                <ColumnSearchModal
+                    system={columnSearchProp.bindingSystem || 'bigquery'}
+                    onClose={() => setColumnSearchModalPropId(null)}
+                    onSelect={(selection) => {
+                        const bindingStr = selection.dataset 
+                            ? `${selection.project}.${selection.dataset}.${selection.table}.${selection.column}`
+                            : `${selection.project}/${selection.instance}/${selection.database}.${selection.table}.${selection.column}`;
+                        updateProperty(columnSearchModalPropId, {
+                            bindingProject: selection.project,
+                            bindingDataset: selection.dataset,
+                            bindingTable: selection.table,
+                            bindingColumn: selection.column,
+                            binding: bindingStr
+                        });
+                        setColumnSearchModalPropId(null);
+                    }}
+                />
+            )}
         </div>
     );
 };
@@ -1618,7 +1701,7 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
 const EntityConfigView: React.FC<any> = ({ 
     entity, model, setModel, availableColumns, currentEntityTableName, 
     editingBindingId, setEditingBindingId, tempBindingValue, setTempBindingValue, 
-    saveBinding, startEditingBinding, onLinkClick 
+    saveBinding, startEditingBinding, onLinkClick, onColumnSearch
 }) => {
     const [expandedPropertyId, setExpandedPropertyId] = useState<string | null>(null);
 
@@ -1825,55 +1908,55 @@ const EntityConfigView: React.FC<any> = ({
                                             </button>
                                         </div>
                                         {(prop.bindingType || 'column') === 'column' ? (
-                                            editingBindingId === prop.id ? (
-                                                <div className="bg-blue-50/50 p-2 rounded border border-blue-100">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="relative flex-1">
-                                                            <select
-                                                                value={tempBindingValue}
-                                                                onChange={(e) => setTempBindingValue(e.target.value)}
-                                                                className="w-full text-xs border border-blue-300 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none"
-                                                                autoFocus
-                                                            >
-                                                                <option value="">Select column...</option>
-                                                                {availableColumns.map(col => (
-                                                                    <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
-                                                                        {col.name} ({col.type})
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                            <ChevronDown className="absolute right-2 top-2 text-gray-400 pointer-events-none" size={12}/>
-                                                        </div>
-                                                        <button onClick={() => saveBinding(entity.id, prop.id)} className="text-white bg-green-500 hover:bg-green-600 p-1 rounded shadow-sm"><Check size={14}/></button>
-                                                        <button onClick={() => setEditingBindingId(null)} className="text-gray-500 hover:bg-gray-200 p-1 rounded"><X size={14}/></button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center justify-between bg-white p-2 rounded border border-gray-200">
-                                                    <div className="flex items-center gap-2">
-                                                        <Database size={14} className="text-blue-500" />
-                                                        <span className="text-sm font-mono text-gray-700">
-                                                            {prop.binding || 'Not bound'}
-                                                        </span>
-                                                    </div>
-                                                    <button 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            startEditingBinding(prop.id, prop.binding);
-                                                        }}
-                                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <label className="block text-xs text-gray-500 mb-1">System</label>
+                                                    <select
+                                                        value={prop.bindingSystem || 'bigquery'}
+                                                        onChange={(e) => updateProperty(prop.id, { 
+                                                            bindingSystem: e.target.value as 'bigquery' | 'spanner',
+                                                            bindingProject: '',
+                                                            bindingDataset: '',
+                                                            bindingTable: '',
+                                                            bindingColumn: '',
+                                                            binding: ''
+                                                        })}
+                                                        className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-white"
                                                     >
-                                                        Edit
-                                                    </button>
+                                                        <option value="bigquery">BigQuery</option>
+                                                        <option value="spanner">Spanner</option>
+                                                    </select>
                                                 </div>
-                                            )
+                                                <div>
+                                                    <label className="block text-xs text-gray-500 mb-1">Table & Column</label>
+                                                    <div 
+                                                        onClick={() => onColumnSearch && onColumnSearch(prop.id)}
+                                                        className="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors flex items-center justify-between"
+                                                    >
+                                                        {prop.binding ? (
+                                                            <span className="font-mono text-gray-700">{prop.binding}</span>
+                                                        ) : (
+                                                            <span className="text-gray-400">Click to search and select...</span>
+                                                        )}
+                                                        <Search size={14} className="text-gray-400" />
+                                                    </div>
+                                                </div>
+                                            </div>
                                         ) : (
-                                            <textarea
-                                                value={prop.binding || ''}
-                                                onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
-                                                placeholder="Enter SQL expression, e.g.:&#10;CONCAT(table.first_name, ' ', table.last_name)"
-                                                className="w-full text-sm font-mono border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-gray-50 min-h-[60px] resize-y"
-                                            />
+                                            <>
+                                                <textarea
+                                                    value={prop.binding || ''}
+                                                    onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
+                                                    placeholder="Enter SQL expression, e.g.:&#10;CONCAT(table.first_name, ' ', table.last_name)"
+                                                    className="w-full text-sm font-mono border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-gray-50 min-h-[60px] resize-y"
+                                                />
+                                                <div className="mt-3">
+                                                    <PropertyDefinitionEditor
+                                                        definition={prop.definition || ''}
+                                                        onChange={(definition) => updateProperty(prop.id, { definition })}
+                                                    />
+                                                </div>
+                                            </>
                                         )}
                                     </div>
 
@@ -3156,6 +3239,179 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                         </div>
                     )}
                 </div>
+            </div>
+        </div>
+    );
+};
+
+// Mock BigQuery/Spanner catalog data for searching
+const MOCK_CATALOG = {
+    bigquery: [
+        { project: 'analytics-prod', dataset: 'sales', table: 'orders', columns: ['order_id', 'customer_id', 'order_date', 'total_amount', 'status'] },
+        { project: 'analytics-prod', dataset: 'sales', table: 'customers', columns: ['customer_id', 'name', 'email', 'created_at', 'segment'] },
+        { project: 'analytics-prod', dataset: 'sales', table: 'products', columns: ['product_id', 'sku', 'name', 'category', 'price'] },
+        { project: 'analytics-prod', dataset: 'inventory', table: 'stock_levels', columns: ['sku', 'warehouse_id', 'quantity', 'last_updated'] },
+        { project: 'data-warehouse', dataset: 'finance', table: 'revenue', columns: ['date', 'product_id', 'revenue', 'cost', 'margin'] },
+        { project: 'data-warehouse', dataset: 'finance', table: 'transactions', columns: ['tx_id', 'customer_id', 'amount', 'type', 'timestamp'] },
+        { project: 'bigquery-public-data', dataset: 'samples', table: 'shakespeare', columns: ['word', 'word_count', 'corpus', 'corpus_date'] },
+        { project: 'bigquery-public-data', dataset: 'usa_names', table: 'usa_1910_current', columns: ['state', 'gender', 'year', 'name', 'number'] },
+    ],
+    spanner: [
+        { project: 'spanner-prod', instance: 'main-instance', database: 'app_db', table: 'users', columns: ['user_id', 'username', 'email', 'created_at'] },
+        { project: 'spanner-prod', instance: 'main-instance', database: 'app_db', table: 'sessions', columns: ['session_id', 'user_id', 'token', 'expires_at'] },
+        { project: 'spanner-prod', instance: 'analytics', database: 'events_db', table: 'events', columns: ['event_id', 'user_id', 'event_type', 'timestamp', 'payload'] },
+    ]
+};
+
+const ColumnSearchModal: React.FC<{
+    system: 'bigquery' | 'spanner';
+    onClose: () => void;
+    onSelect: (selection: { project: string; dataset?: string; instance?: string; database?: string; table: string; column: string }) => void;
+}> = ({ system, onClose, onSelect }) => {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedProject, setSelectedProject] = useState('');
+    const [selectedDataset, setSelectedDataset] = useState('');
+    const [selectedTable, setSelectedTable] = useState('');
+    const [step, setStep] = useState<'search' | 'columns'>('search');
+    const [selectedTableData, setSelectedTableData] = useState<any>(null);
+
+    const catalog = system === 'bigquery' ? MOCK_CATALOG.bigquery : MOCK_CATALOG.spanner;
+    
+    const filteredTables = useMemo(() => {
+        const query = searchQuery.toLowerCase();
+        return catalog.filter(item => 
+            item.project.toLowerCase().includes(query) ||
+            ('dataset' in item && item.dataset?.toLowerCase().includes(query)) ||
+            ('database' in item && item.database?.toLowerCase().includes(query)) ||
+            item.table.toLowerCase().includes(query) ||
+            item.columns.some(c => c.toLowerCase().includes(query))
+        );
+    }, [catalog, searchQuery]);
+
+    const projects = useMemo(() => [...new Set(catalog.map(t => t.project))], [catalog]);
+
+    const handleTableClick = (tableData: any) => {
+        setSelectedTableData(tableData);
+        setStep('columns');
+    };
+
+    const handleColumnSelect = (column: string) => {
+        if (system === 'bigquery') {
+            onSelect({
+                project: selectedTableData.project,
+                dataset: selectedTableData.dataset,
+                table: selectedTableData.table,
+                column
+            });
+        } else {
+            onSelect({
+                project: selectedTableData.project,
+                instance: selectedTableData.instance,
+                database: selectedTableData.database,
+                table: selectedTableData.table,
+                column
+            });
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
+                    <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                        <Database size={18} className="text-blue-600"/>
+                        {step === 'search' ? `Search ${system === 'bigquery' ? 'BigQuery' : 'Spanner'} Tables` : 'Select Column'}
+                    </h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18}/></button>
+                </div>
+
+                {step === 'search' ? (
+                    <>
+                        <div className="p-4 border-b border-gray-100">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search projects, tables, or columns..."
+                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 outline-none text-sm"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4">
+                            {filteredTables.length === 0 ? (
+                                <div className="text-center text-gray-500 py-8">No tables found</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {filteredTables.map((item, idx) => (
+                                        <div 
+                                            key={idx}
+                                            onClick={() => handleTableClick(item)}
+                                            className="p-3 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <TableIcon size={14} className="text-blue-500" />
+                                                <span className="font-medium text-gray-800">{item.table}</span>
+                                            </div>
+                                            <div className="text-xs text-gray-500 font-mono">
+                                                {system === 'bigquery' 
+                                                    ? `${item.project}.${(item as any).dataset}.${item.table}`
+                                                    : `${item.project}/${(item as any).instance}/${(item as any).database}.${item.table}`
+                                                }
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                                {item.columns.slice(0, 5).map(col => (
+                                                    <span key={col} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                                                        {col}
+                                                    </span>
+                                                ))}
+                                                {item.columns.length > 5 && (
+                                                    <span className="px-2 py-0.5 text-gray-400 text-xs">
+                                                        +{item.columns.length - 5} more
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="p-4 border-b border-gray-100 bg-gray-50">
+                            <button 
+                                onClick={() => setStep('search')}
+                                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-2"
+                            >
+                                <ArrowLeft size={14} /> Back to search
+                            </button>
+                            <div className="text-sm font-mono text-gray-700">
+                                {system === 'bigquery' 
+                                    ? `${selectedTableData.project}.${selectedTableData.dataset}.${selectedTableData.table}`
+                                    : `${selectedTableData.project}/${selectedTableData.instance}/${selectedTableData.database}.${selectedTableData.table}`
+                                }
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4">
+                            <div className="text-xs font-medium text-gray-500 uppercase mb-3">Select a column</div>
+                            <div className="space-y-1">
+                                {selectedTableData.columns.map((col: string) => (
+                                    <div 
+                                        key={col}
+                                        onClick={() => handleColumnSelect(col)}
+                                        className="p-3 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer transition-colors flex items-center gap-2"
+                                    >
+                                        <Columns size={14} className="text-gray-400" />
+                                        <span className="font-mono text-sm text-gray-800">{col}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

@@ -52,6 +52,11 @@ export interface Property {
   glossaryTerms?: GlossaryTerm[];
   binding?: string;
   bindingType?: 'column' | 'expression';
+  bindingSystem?: 'bigquery' | 'spanner';
+  bindingProject?: string;
+  bindingDataset?: string;
+  bindingTable?: string;
+  bindingColumn?: string;
   isComputed?: boolean;
   isUniqueKey?: boolean;
   propertyType?: PropertyType;
