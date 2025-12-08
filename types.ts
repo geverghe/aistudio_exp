@@ -51,7 +51,9 @@ export interface Property {
   aspects?: AspectAssignment[];
   glossaryTerms?: GlossaryTerm[];
   binding?: string;
+  bindingType?: 'column' | 'expression';
   isComputed?: boolean;
+  isUniqueKey?: boolean;
   propertyType?: PropertyType;
   definition?: string;
 }

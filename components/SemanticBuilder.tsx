@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory, PropertyType } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download } from 'lucide-react';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download, Key } from 'lucide-react';
 import { suggestEntitiesFromDescription } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
 import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
@@ -1230,20 +1230,67 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                                     </div>
                                                                 </div>
 
+                                                                {/* Unique Key Checkbox */}
+                                                                <div className="flex items-center gap-2 py-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        id={`unique-key-${prop.id}`}
+                                                                        checked={prop.isUniqueKey || false}
+                                                                        onChange={(e) => updateProperty(prop.id, { isUniqueKey: e.target.checked })}
+                                                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                    />
+                                                                    <label htmlFor={`unique-key-${prop.id}`} className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                                                                        <Key size={14} className="text-amber-500" />
+                                                                        Unique Key
+                                                                    </label>
+                                                                </div>
+
+                                                                {/* Property Binding */}
                                                                 <div>
-                                                                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Column Binding</label>
-                                                                    <select
-                                                                        value={prop.binding || ''}
-                                                                        onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
-                                                                        className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-white"
-                                                                    >
-                                                                        <option value="">Select column...</option>
-                                                                        {availableColumns.map(col => (
-                                                                            <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
-                                                                                {col.name} ({col.type})
-                                                                            </option>
-                                                                        ))}
-                                                                    </select>
+                                                                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Property Binding</label>
+                                                                    <div className="flex gap-2 mb-2">
+                                                                        <button
+                                                                            onClick={() => updateProperty(prop.id, { bindingType: 'column' })}
+                                                                            className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                                                                                (prop.bindingType || 'column') === 'column'
+                                                                                    ? 'bg-blue-600 text-white'
+                                                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                            }`}
+                                                                        >
+                                                                            Column
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => updateProperty(prop.id, { bindingType: 'expression' })}
+                                                                            className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                                                                                prop.bindingType === 'expression'
+                                                                                    ? 'bg-blue-600 text-white'
+                                                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                            }`}
+                                                                        >
+                                                                            Expression
+                                                                        </button>
+                                                                    </div>
+                                                                    {(prop.bindingType || 'column') === 'column' ? (
+                                                                        <select
+                                                                            value={prop.binding || ''}
+                                                                            onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
+                                                                            className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-white"
+                                                                        >
+                                                                            <option value="">Select column...</option>
+                                                                            {availableColumns.map(col => (
+                                                                                <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
+                                                                                    {col.name} ({col.type})
+                                                                                </option>
+                                                                            ))}
+                                                                        </select>
+                                                                    ) : (
+                                                                        <textarea
+                                                                            value={prop.binding || ''}
+                                                                            onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
+                                                                            placeholder="Enter SQL expression, e.g.:&#10;CONCAT(table.first_name, ' ', table.last_name)"
+                                                                            className="w-full text-sm font-mono border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-gray-50 min-h-[60px] resize-y"
+                                                                        />
+                                                                    )}
                                                                 </div>
 
                                                                 <PropertyDefinitionEditor
@@ -1642,7 +1689,7 @@ const EntityConfigView: React.FC<any> = ({
 
             {/* Binding Info */}
             <div className="mb-8">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Physical Binding</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Property Binding</label>
                 <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 text-gray-700">
@@ -1737,50 +1784,96 @@ const EntityConfigView: React.FC<any> = ({
                                         />
                                     </div>
                                     
-                                    {/* Binding Editor */}
+                                    {/* Unique Key Checkbox */}
+                                    <div className="flex items-center gap-2 pt-2">
+                                        <input
+                                            type="checkbox"
+                                            id={`unique-key-alt-${prop.id}`}
+                                            checked={prop.isUniqueKey || false}
+                                            onChange={(e) => updateProperty(prop.id, { isUniqueKey: e.target.checked })}
+                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                        <label htmlFor={`unique-key-alt-${prop.id}`} className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                                            <Key size={14} className="text-amber-500" />
+                                            Unique Key
+                                        </label>
+                                    </div>
+
+                                    {/* Property Binding */}
                                     <div className="pt-2">
-                                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Column Binding</label>
-                                        {editingBindingId === prop.id ? (
-                                            <div className="bg-blue-50/50 p-2 rounded border border-blue-100">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="relative flex-1">
-                                                        <select
-                                                            value={tempBindingValue}
-                                                            onChange={(e) => setTempBindingValue(e.target.value)}
-                                                            className="w-full text-xs border border-blue-300 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none"
-                                                            autoFocus
-                                                        >
-                                                            <option value="">Select column...</option>
-                                                            {availableColumns.map(col => (
-                                                                <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
-                                                                    {col.name} ({col.type})
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        <ChevronDown className="absolute right-2 top-2 text-gray-400 pointer-events-none" size={12}/>
+                                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Property Binding</label>
+                                        <div className="flex gap-2 mb-2">
+                                            <button
+                                                onClick={() => updateProperty(prop.id, { bindingType: 'column' })}
+                                                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                                                    (prop.bindingType || 'column') === 'column'
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                Column
+                                            </button>
+                                            <button
+                                                onClick={() => updateProperty(prop.id, { bindingType: 'expression' })}
+                                                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                                                    prop.bindingType === 'expression'
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                Expression
+                                            </button>
+                                        </div>
+                                        {(prop.bindingType || 'column') === 'column' ? (
+                                            editingBindingId === prop.id ? (
+                                                <div className="bg-blue-50/50 p-2 rounded border border-blue-100">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="relative flex-1">
+                                                            <select
+                                                                value={tempBindingValue}
+                                                                onChange={(e) => setTempBindingValue(e.target.value)}
+                                                                className="w-full text-xs border border-blue-300 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none"
+                                                                autoFocus
+                                                            >
+                                                                <option value="">Select column...</option>
+                                                                {availableColumns.map(col => (
+                                                                    <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
+                                                                        {col.name} ({col.type})
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            <ChevronDown className="absolute right-2 top-2 text-gray-400 pointer-events-none" size={12}/>
+                                                        </div>
+                                                        <button onClick={() => saveBinding(entity.id, prop.id)} className="text-white bg-green-500 hover:bg-green-600 p-1 rounded shadow-sm"><Check size={14}/></button>
+                                                        <button onClick={() => setEditingBindingId(null)} className="text-gray-500 hover:bg-gray-200 p-1 rounded"><X size={14}/></button>
                                                     </div>
-                                                    <button onClick={() => saveBinding(entity.id, prop.id)} className="text-white bg-green-500 hover:bg-green-600 p-1 rounded shadow-sm"><Check size={14}/></button>
-                                                    <button onClick={() => setEditingBindingId(null)} className="text-gray-500 hover:bg-gray-200 p-1 rounded"><X size={14}/></button>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <div className="flex items-center justify-between bg-white p-2 rounded border border-gray-200">
+                                                    <div className="flex items-center gap-2">
+                                                        <Database size={14} className="text-blue-500" />
+                                                        <span className="text-sm font-mono text-gray-700">
+                                                            {prop.binding || 'Not bound'}
+                                                        </span>
+                                                    </div>
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            startEditingBinding(prop.id, prop.binding);
+                                                        }}
+                                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                </div>
+                                            )
                                         ) : (
-                                            <div className="flex items-center justify-between bg-white p-2 rounded border border-gray-200">
-                                                <div className="flex items-center gap-2">
-                                                    <Database size={14} className="text-blue-500" />
-                                                    <span className="text-sm font-mono text-gray-700">
-                                                        {prop.binding || 'Not bound'}
-                                                    </span>
-                                                </div>
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        startEditingBinding(prop.id, prop.binding);
-                                                    }}
-                                                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                                >
-                                                    Edit
-                                                </button>
-                                            </div>
+                                            <textarea
+                                                value={prop.binding || ''}
+                                                onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
+                                                placeholder="Enter SQL expression, e.g.:&#10;CONCAT(table.first_name, ' ', table.last_name)"
+                                                className="w-full text-sm font-mono border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-gray-50 min-h-[60px] resize-y"
+                                            />
                                         )}
                                     </div>
 
