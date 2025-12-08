@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical } from 'lucide-react';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download } from 'lucide-react';
 import { suggestEntitiesFromDescription } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
 import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
@@ -2517,6 +2517,36 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
         return typeMap[dataType?.toUpperCase()] || 'STRING(MAX)';
     };
 
+    const handleDownload = () => {
+        let content = '';
+        let filename = '';
+        let mimeType = 'text/plain';
+        
+        if (selectedTarget === 'looker') {
+            content = generateLookML();
+            filename = `${model.name.toLowerCase().replace(/\s+/g, '_')}.view.lkml`;
+            mimeType = 'text/plain';
+        } else if (selectedTarget === 'spanner') {
+            content = generateSpannerDDL();
+            filename = `${model.name.toLowerCase().replace(/\s+/g, '_')}_spanner.sql`;
+            mimeType = 'application/sql';
+        } else {
+            content = generateBigQueryDDL();
+            filename = `${model.name.toLowerCase().replace(/\s+/g, '_')}_bigquery.sql`;
+            mimeType = 'application/sql';
+        }
+        
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
     if (deployed) {
         return (
             <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-gray-100">
@@ -2693,13 +2723,31 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                         <div className="space-y-5">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">Looker Project Name</label>
-                                                <input
-                                                    type="text"
+                                                <select
                                                     value={lookerProject}
                                                     onChange={(e) => setLookerProject(e.target.value)}
-                                                    placeholder="my_looker_project"
-                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                                />
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                                                >
+                                                    <option value="">Select a Looker project...</option>
+                                                    <option value="semantic_analytics">semantic_analytics</option>
+                                                    <option value="enterprise_reporting">enterprise_reporting</option>
+                                                    <option value="data_discovery">data_discovery</option>
+                                                    <option value="business_intelligence">business_intelligence</option>
+                                                    <option value="customer_insights">customer_insights</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Looker Instance</label>
+                                                <select
+                                                    value={instance}
+                                                    onChange={(e) => setInstance(e.target.value)}
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                                                >
+                                                    <option value="">Select an instance...</option>
+                                                    <option value="looker.company.com">looker.company.com (Production)</option>
+                                                    <option value="looker-dev.company.com">looker-dev.company.com (Development)</option>
+                                                    <option value="looker-staging.company.com">looker-staging.company.com (Staging)</option>
+                                                </select>
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">Source Project (BigQuery)</label>
@@ -2737,7 +2785,7 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                                 isDeploying || 
                                                 (selectedTarget === 'bigquery' && (!project || !dataset)) ||
                                                 (selectedTarget === 'spanner' && (!project || !instance || !dataset)) ||
-                                                (selectedTarget === 'looker' && (!project || !dataset || !lookerProject))
+                                                (selectedTarget === 'looker' && (!project || !dataset || !lookerProject || !instance))
                                             }
                                             className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                         >
@@ -2789,14 +2837,32 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                 </div>
                                 
                                 {previewMode === 'ddl' ? (
-                                    <div className="bg-gray-900 rounded-2xl p-6 h-[600px] overflow-auto">
-                                        <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">
-                                            {selectedTarget === 'looker' 
-                                                ? generateLookML() 
-                                                : selectedTarget === 'spanner' 
-                                                    ? generateSpannerDDL() 
-                                                    : generateBigQueryDDL()}
-                                        </pre>
+                                    <div className="bg-gray-900 rounded-2xl overflow-hidden">
+                                        <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+                                            <span className="text-xs text-gray-400 font-mono">
+                                                {selectedTarget === 'looker' 
+                                                    ? `${model.name.toLowerCase().replace(/\s+/g, '_')}.view.lkml`
+                                                    : selectedTarget === 'spanner'
+                                                        ? `${model.name.toLowerCase().replace(/\s+/g, '_')}_spanner.sql`
+                                                        : `${model.name.toLowerCase().replace(/\s+/g, '_')}_bigquery.sql`}
+                                            </span>
+                                            <button
+                                                onClick={handleDownload}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
+                                            >
+                                                <Download size={14} />
+                                                Download
+                                            </button>
+                                        </div>
+                                        <div className="p-6 h-[560px] overflow-auto">
+                                            <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">
+                                                {selectedTarget === 'looker' 
+                                                    ? generateLookML() 
+                                                    : selectedTarget === 'spanner' 
+                                                        ? generateSpannerDDL() 
+                                                        : generateBigQueryDDL()}
+                                            </pre>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -2888,7 +2954,15 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                         {selectedTarget === 'looker' && (
                                             <div className="mt-6 pt-6 border-t border-gray-100">
                                                 <h4 className="text-sm font-semibold text-gray-700 mb-3">Looker Configuration</h4>
-                                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Looker Project</div>
+                                                        <div className="font-mono text-gray-900">{lookerProject || '—'}</div>
+                                                    </div>
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Looker Instance</div>
+                                                        <div className="font-mono text-gray-900">{instance || '—'}</div>
+                                                    </div>
                                                     <div className="bg-gray-50 rounded-xl p-3">
                                                         <div className="text-gray-500 text-xs mb-1">Source Project</div>
                                                         <div className="font-mono text-gray-900">{project || '—'}</div>
@@ -2896,10 +2970,6 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                                     <div className="bg-gray-50 rounded-xl p-3">
                                                         <div className="text-gray-500 text-xs mb-1">Source Dataset</div>
                                                         <div className="font-mono text-gray-900">{dataset || '—'}</div>
-                                                    </div>
-                                                    <div className="bg-gray-50 rounded-xl p-3">
-                                                        <div className="text-gray-500 text-xs mb-1">Looker Project</div>
-                                                        <div className="font-mono text-gray-900">{lookerProject || '—'}</div>
                                                     </div>
                                                 </div>
                                             </div>
