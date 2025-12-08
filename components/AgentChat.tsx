@@ -4,7 +4,7 @@ import { generateAssistantResponse } from '../services/geminiService';
 import { Send, User, Bot, Sparkles } from 'lucide-react';
 
 interface AgentChatProps {
-  model: SemanticModel;
+  model: SemanticModel | null | undefined;
 }
 
 export const AgentChat: React.FC<AgentChatProps> = ({ model }) => {
@@ -12,7 +12,9 @@ export const AgentChat: React.FC<AgentChatProps> = ({ model }) => {
     {
         id: 'welcome',
         role: 'model',
-        text: 'Hello! I am your Data Agent. I have context on your Revenue, Inventory, and Product entities. Ask me anything about your business data.',
+        text: model 
+          ? `Hello! I am your Data Agent. I have context on your ${model.name || 'semantic model'}. Ask me anything about your business data.`
+          : 'Hello! I am your Data Agent. Please select a semantic model first to enable me to answer questions about your business data.',
         timestamp: new Date()
     }
   ]);
@@ -27,7 +29,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ model }) => {
   useEffect(scrollToBottom, [messages]);
 
   const handleSend = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || !model) return;
 
     const userMsg: ChatMessage = {
         id: Date.now().toString(),

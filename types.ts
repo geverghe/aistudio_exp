@@ -75,9 +75,22 @@ export interface Relationship {
   label?: string; // Display title for the link
 }
 
-export interface SemanticModel {
+export interface SemanticModelGraph {
   entities: Entity[];
   relationships: Relationship[];
+}
+
+export interface SemanticModel extends SemanticModelGraph {
+  id: string;
+  name: string;
+  description?: string;
+  domain?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface SemanticModelCollection {
+  models: SemanticModel[];
 }
 
 export interface ChatMessage {

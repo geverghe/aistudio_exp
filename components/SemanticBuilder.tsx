@@ -30,8 +30,12 @@ const MOCK_BQ_SCHEMA: Record<string, Array<{ name: string, type: string }>> = {
 };
 
 interface SemanticBuilderProps {
-  model: SemanticModel;
-  setModel: React.Dispatch<React.SetStateAction<SemanticModel>>;
+  models: SemanticModel[];
+  activeModelId: string | null;
+  onSelectModel: (modelId: string | null) => void;
+  onUpdateModel: (model: SemanticModel) => void;
+  onCreateModel: (model: SemanticModel) => void;
+  onDeleteModel: (modelId: string) => void;
 }
 
 type Selection = 
@@ -42,7 +46,21 @@ type Selection =
 
 type ViewMode = 'GRAPH' | 'AUTHORING' | 'FULL_PAGE_ENTITY';
 
-export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ model, setModel }) => {
+export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ 
+  models, 
+  activeModelId, 
+  onSelectModel, 
+  onUpdateModel, 
+  onCreateModel, 
+  onDeleteModel 
+}) => {
+  const model = models.find(m => m.id === activeModelId);
+  
+  const setModel = (updater: SemanticModel | ((prev: SemanticModel) => SemanticModel)) => {
+    if (!model) return;
+    const newModel = typeof updater === 'function' ? updater(model) : updater;
+    onUpdateModel({ ...newModel, updatedAt: new Date() });
+  };
   const [selection, setSelection] = useState<Selection>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('GRAPH');
   
@@ -71,12 +89,12 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ model, setMode
   
   // Helper to get selected objects
   const selectedEntity = useMemo(() => 
-    selection?.type === 'ENTITY' ? model.entities.find(e => e.id === selection.id) : null,
-  [selection, model.entities]);
+    selection?.type === 'ENTITY' ? model?.entities.find(e => e.id === selection.id) : null,
+  [selection, model?.entities]);
 
   const selectedRelationship = useMemo(() => 
-    selection?.type === 'RELATIONSHIP' ? model.relationships.find(r => r.id === selection.id) : null,
-  [selection, model.relationships]);
+    selection?.type === 'RELATIONSHIP' ? model?.relationships.find(r => r.id === selection.id) : null,
+  [selection, model?.relationships]);
 
   // Handle Search Input Focus
   useEffect(() => {
@@ -87,12 +105,13 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ model, setMode
 
   // Filter Entities
   const filteredEntities = useMemo(() => {
-    if (!searchQuery) return model.entities;
-    return model.entities.filter(ent => 
+    const entities = model?.entities ?? [];
+    if (!searchQuery) return entities;
+    return entities.filter(ent => 
         ent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ent.description.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [model.entities, searchQuery]);
+  }, [model?.entities, searchQuery]);
 
   // Handle Resizing
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -217,7 +236,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ model, setMode
       );
   }
 
-  if (viewMode === 'FULL_PAGE_ENTITY') {
+  if (viewMode === 'FULL_PAGE_ENTITY' && model) {
       const entity = model.entities.find(e => e.id === fullScreenEntityId);
       if (!entity) return <div>Entity not found</div>;
       
@@ -236,11 +255,127 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ model, setMode
       );
   }
 
+  // Model Directory View - show when no model is selected
+  if (!model) {
+    return (
+      <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100 p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Semantic Models</h1>
+              <p className="text-gray-500 mt-1">Select a model to view and edit its entities</p>
+            </div>
+            <button
+              onClick={() => {
+                const newModel: SemanticModel = {
+                  id: `model_${Date.now()}`,
+                  name: 'New Semantic Model',
+                  description: '',
+                  entities: [],
+                  relationships: [],
+                  createdAt: new Date(),
+                  updatedAt: new Date()
+                };
+                onCreateModel(newModel);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <Plus size={18} />
+              New Model
+            </button>
+          </div>
+
+          {/* Models Grid */}
+          {models.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+              <Database size={48} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-700 mb-2">No semantic models yet</h3>
+              <p className="text-gray-500 mb-6">Create your first model to get started</p>
+              <button
+                onClick={() => {
+                  const newModel: SemanticModel = {
+                    id: `model_${Date.now()}`,
+                    name: 'New Semantic Model',
+                    description: '',
+                    entities: [],
+                    relationships: [],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                  };
+                  onCreateModel(newModel);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus size={18} />
+                Create Model
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {models.map((m) => (
+                <div
+                  key={m.id}
+                  onClick={() => onSelectModel(m.id)}
+                  className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
+                      <Database size={24} className="text-white" />
+                    </div>
+                    {m.domain && (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                        {m.domain}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                    {m.name}
+                  </h3>
+                  {m.description && (
+                    <p className="text-sm text-gray-500 mb-4 line-clamp-2">{m.description}</p>
+                  )}
+                  <div className="flex items-center gap-4 text-xs text-gray-400">
+                    <div className="flex items-center gap-1">
+                      <TableIcon size={12} />
+                      <span>{m.entities.length} entities</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Link size={12} />
+                      <span>{m.relationships.length} relationships</span>
+                    </div>
+                  </div>
+                  {m.updatedAt && (
+                    <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400">
+                      Updated {new Date(m.updatedAt).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full bg-white overflow-hidden relative">
       
       {/* Left Pane: Search/Navigator */}
       <div className="w-[280px] bg-white border-r border-gray-200 flex flex-col z-10 shrink-0">
+         {/* Model Breadcrumb */}
+         <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
+           <button
+             onClick={() => onSelectModel(null)}
+             className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
+           >
+             <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+             <span className="text-gray-400">Models</span>
+             <ChevronRight size={12} className="text-gray-300" />
+             <span className="font-medium text-gray-700 truncate max-w-[160px]">{model.name}</span>
+           </button>
+         </div>
          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between h-[52px]">
              {!isSearchVisible ? (
                  <>

@@ -4,49 +4,89 @@ import { SideNav } from './components/SideNav';
 import { Dashboard } from './components/Dashboard';
 import { SemanticBuilder } from './components/SemanticBuilder';
 import { AgentChat } from './components/AgentChat';
-import { ViewState, SemanticModel, EntityType } from './types';
+import { ViewState, SemanticModel, SemanticModelCollection, EntityType } from './types';
 
 // Mock initial data based on the PDF examples (Revenue Domain)
-const INITIAL_MODEL: SemanticModel = {
-  entities: [
+const INITIAL_MODELS: SemanticModelCollection = {
+  models: [
     {
-      id: 'ent_prod',
-      name: 'Product',
-      type: EntityType.ENTITY,
-      description: 'Physical goods sold by the company',
-      properties: [
-        { id: 'p1', name: 'Product SKU', dataType: 'STRING', description: 'Unique identifier', binding: 'DWH_DIM_PROD.sku_id' },
-        { id: 'p2', name: 'Product Name', dataType: 'STRING', description: 'Display name', binding: 'DWH_DIM_PROD.product_name' },
-        { id: 'p3', name: 'Category', dataType: 'STRING', description: 'Product category', binding: 'DWH_DIM_PROD.product_category' }
+      id: 'model_revenue',
+      name: 'Revenue Domain',
+      description: 'Semantic model for revenue analytics including products, inventory, and sales data',
+      domain: 'Finance',
+      createdAt: new Date('2024-01-15'),
+      updatedAt: new Date('2024-12-01'),
+      entities: [
+        {
+          id: 'ent_prod',
+          name: 'Product',
+          type: EntityType.ENTITY,
+          description: 'Physical goods sold by the company',
+          properties: [
+            { id: 'p1', name: 'Product SKU', dataType: 'STRING', description: 'Unique identifier', binding: 'DWH_DIM_PROD.sku_id' },
+            { id: 'p2', name: 'Product Name', dataType: 'STRING', description: 'Display name', binding: 'DWH_DIM_PROD.product_name' },
+            { id: 'p3', name: 'Category', dataType: 'STRING', description: 'Product category', binding: 'DWH_DIM_PROD.product_category' }
+          ]
+        },
+        {
+          id: 'ent_inventory',
+          name: 'Inventory',
+          type: EntityType.ENTITY,
+          description: 'Current stock levels in warehouses',
+          properties: [
+            { id: 'i1', name: 'Product SKU', dataType: 'STRING', description: 'Foreign key to Product', binding: 'OLTP_INV_SKU.sku_id' },
+            { id: 'i2', name: 'Current Stock', dataType: 'INTEGER', description: 'Quantity on hand', binding: 'OLTP_INV_SKU.current_stock_qty' },
+            { id: 'i3', name: 'Last Updated', dataType: 'TIMESTAMP', description: 'Time of last check', binding: 'OLTP_INV_SKU.last_updated_ts' }
+          ]
+        }
+      ],
+      relationships: [
+        {
+          id: 'rel_prod_inv',
+          sourceEntityId: 'ent_prod',
+          targetEntityId: 'ent_inventory',
+          type: 'ONE_TO_MANY',
+          description: 'Inventory availability for products',
+          label: 'Has Inventory'
+        }
       ]
     },
     {
-      id: 'ent_inventory',
-      name: 'Inventory',
-      type: EntityType.ENTITY,
-      description: 'Current stock levels in warehouses',
-      properties: [
-        { id: 'i1', name: 'Product SKU', dataType: 'STRING', description: 'Foreign key to Product', binding: 'OLTP_INV_SKU.sku_id' },
-        { id: 'i2', name: 'Current Stock', dataType: 'INTEGER', description: 'Quantity on hand', binding: 'OLTP_INV_SKU.current_stock_qty' },
-        { id: 'i3', name: 'Last Updated', dataType: 'TIMESTAMP', description: 'Time of last check', binding: 'OLTP_INV_SKU.last_updated_ts' }
-      ]
-    }
-  ],
-  relationships: [
+      id: 'model_customer',
+      name: 'Customer Domain',
+      description: 'Customer lifecycle and engagement analytics',
+      domain: 'Marketing',
+      createdAt: new Date('2024-03-10'),
+      updatedAt: new Date('2024-11-20'),
+      entities: [],
+      relationships: []
+    },
     {
-        id: 'rel_prod_inv',
-        sourceEntityId: 'ent_prod',
-        targetEntityId: 'ent_inventory',
-        type: 'ONE_TO_MANY',
-        description: 'Inventory availability for products',
-        label: 'Has Inventory'
+      id: 'model_operations',
+      name: 'Operations Domain',
+      description: 'Supply chain and logistics semantic model',
+      domain: 'Operations',
+      createdAt: new Date('2024-06-01'),
+      updatedAt: new Date('2024-10-15'),
+      entities: [],
+      relationships: []
     }
   ]
 };
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.DASHBOARD);
-  const [semanticModel, setSemanticModel] = useState<SemanticModel>(INITIAL_MODEL);
+  const [modelCollection, setModelCollection] = useState<SemanticModelCollection>(INITIAL_MODELS);
+  const [activeModelId, setActiveModelId] = useState<string | null>(null);
+  
+  const activeModel = activeModelId ? modelCollection.models.find(m => m.id === activeModelId) : null;
+  
+  const updateActiveModel = (updatedModel: SemanticModel) => {
+    setModelCollection(prev => ({
+      ...prev,
+      models: prev.models.map(m => m.id === updatedModel.id ? updatedModel : m)
+    }));
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -56,10 +96,31 @@ function App() {
         <main className="flex-1 overflow-auto relative">
             {currentView === ViewState.DASHBOARD && <Dashboard />}
             {currentView === ViewState.SEMANTIC_MODELER && (
-                <SemanticBuilder model={semanticModel} setModel={setSemanticModel} />
+                <SemanticBuilder 
+                  models={modelCollection.models}
+                  activeModelId={activeModelId}
+                  onSelectModel={setActiveModelId}
+                  onUpdateModel={updateActiveModel}
+                  onCreateModel={(newModel) => {
+                    setModelCollection(prev => ({
+                      ...prev,
+                      models: [...prev.models, newModel]
+                    }));
+                    setActiveModelId(newModel.id);
+                  }}
+                  onDeleteModel={(modelId) => {
+                    setModelCollection(prev => ({
+                      ...prev,
+                      models: prev.models.filter(m => m.id !== modelId)
+                    }));
+                    if (activeModelId === modelId) {
+                      setActiveModelId(null);
+                    }
+                  }}
+                />
             )}
             {currentView === ViewState.AGENT_CHAT && (
-                <AgentChat model={semanticModel} />
+                <AgentChat model={activeModel} />
             )}
         </main>
       </div>
