@@ -476,6 +476,31 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
 }) => {
     const [expandedPropertyId, setExpandedPropertyId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'config' | 'dashboard'>('dashboard');
+    const [expandedConfigSection, setExpandedConfigSection] = useState<'entity' | 'properties' | null>('entity');
+    const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
+
+    const addNewProperty = () => {
+        const newProp: Property = {
+            id: `prop_${Date.now()}`,
+            name: 'New Property',
+            dataType: 'STRING',
+            description: '',
+            binding: ''
+        };
+        updateEntity({ 
+            properties: [...entity.properties, newProp] 
+        });
+        setEditingPropertyId(newProp.id);
+    };
+
+    const deleteProperty = (propId: string) => {
+        updateEntity({
+            properties: entity.properties.filter(p => p.id !== propId)
+        });
+        if (editingPropertyId === propId) {
+            setEditingPropertyId(null);
+        }
+    };
 
     const updateEntity = (updates: Partial<Entity>) => {
         setModel(prev => ({
@@ -553,50 +578,225 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
             <div className="flex-1 overflow-auto p-8 min-h-0">
                 <div className="max-w-5xl mx-auto pb-8">
                     {activeTab === 'config' && (
-                        <div className="space-y-6">
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <Settings2 size={18} className="text-gray-500" />
-                                    Entity Configuration
-                                </h3>
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Entity Name</label>
-                                        <input 
-                                            type="text" 
-                                            value={entity.name}
-                                            onChange={(e) => updateEntity({ name: e.target.value })}
-                                            className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" 
+                        <div className="space-y-4">
+                            {/* Section 1: Manage Entity Details */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div 
+                                    className="p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between"
+                                    onClick={() => setExpandedConfigSection(expandedConfigSection === 'entity' ? null : 'entity')}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <ChevronRight 
+                                            size={18} 
+                                            className={`text-gray-400 transition-transform ${expandedConfigSection === 'entity' ? 'rotate-90' : ''}`}
+                                        />
+                                        <Settings2 size={20} className="text-blue-500" />
+                                        <div>
+                                            <h3 className="text-base font-bold text-gray-800">Manage Entity Details</h3>
+                                            <p className="text-xs text-gray-500">Name, description, aspects, and glossary terms</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {expandedConfigSection === 'entity' && (
+                                    <div className="px-6 pb-6 pt-2 border-t border-gray-100 space-y-6">
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Entity Name</label>
+                                            <input 
+                                                type="text" 
+                                                value={entity.name}
+                                                onChange={(e) => updateEntity({ name: e.target.value })}
+                                                className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" 
+                                            />
+                                        </div>
+                                        <WikiEditor
+                                            content={entity.overview || entity.description}
+                                            onChange={(content) => updateEntity({ overview: content, description: content })}
+                                            placeholder="Add a detailed description of this entity..."
+                                            history={entity.descriptionHistory || []}
+                                            onHistoryUpdate={(history) => updateEntity({ descriptionHistory: history })}
+                                            label="Overview"
+                                            minHeight="120px"
+                                        />
+                                        <AspectSelector
+                                            aspects={entity.aspects || []}
+                                            onChange={(aspects) => updateEntity({ aspects })}
+                                            label="Entity Aspects"
+                                        />
+                                        <GlossarySelector
+                                            selectedTerms={entity.glossaryTerms || []}
+                                            onChange={(glossaryTerms) => updateEntity({ glossaryTerms })}
+                                            label="Glossary Terms"
                                         />
                                     </div>
-                                    <WikiEditor
-                                        content={entity.overview || entity.description}
-                                        onChange={(content) => updateEntity({ overview: content, description: content })}
-                                        placeholder="Add a detailed description of this entity..."
-                                        history={entity.descriptionHistory || []}
-                                        onHistoryUpdate={(history) => updateEntity({ descriptionHistory: history })}
-                                        label="Overview"
-                                        minHeight="150px"
-                                    />
-                                </div>
+                                )}
                             </div>
 
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <h3 className="text-base font-bold text-gray-800 mb-4">Metadata</h3>
-                                <div className="space-y-6">
-                                    <AspectSelector
-                                        aspects={entity.aspects || []}
-                                        onChange={(aspects) => updateEntity({ aspects })}
-                                        label="Entity Aspects"
-                                    />
-                                    <GlossarySelector
-                                        selectedTerms={entity.glossaryTerms || []}
-                                        onChange={(glossaryTerms) => updateEntity({ glossaryTerms })}
-                                        label="Glossary Terms"
-                                    />
+                            {/* Section 2: Manage Properties */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div 
+                                    className="p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between"
+                                    onClick={() => setExpandedConfigSection(expandedConfigSection === 'properties' ? null : 'properties')}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <ChevronRight 
+                                            size={18} 
+                                            className={`text-gray-400 transition-transform ${expandedConfigSection === 'properties' ? 'rotate-90' : ''}`}
+                                        />
+                                        <Layers size={20} className="text-indigo-500" />
+                                        <div>
+                                            <h3 className="text-base font-bold text-gray-800">Manage Properties</h3>
+                                            <p className="text-xs text-gray-500">{entity.properties.length} properties defined</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setExpandedConfigSection('properties');
+                                            addNewProperty();
+                                        }}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    >
+                                        <Plus size={14} />
+                                        Add Property
+                                    </button>
                                 </div>
-                            </div>
+                                {expandedConfigSection === 'properties' && (
+                                    <div className="px-4 pb-4 pt-2 border-t border-gray-100 space-y-3">
+                                        {entity.properties.length === 0 ? (
+                                            <div className="text-center py-8">
+                                                <Layers size={32} className="mx-auto text-gray-300 mb-3" />
+                                                <p className="text-sm text-gray-500 mb-3">No properties defined yet</p>
+                                                <button
+                                                    onClick={addNewProperty}
+                                                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                                                >
+                                                    Add your first property
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            entity.properties.map((prop) => {
+                                                const isEditing = editingPropertyId === prop.id;
+                                                return (
+                                                    <div key={prop.id} className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                                                        <div 
+                                                            className="p-3 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between"
+                                                            onClick={() => setEditingPropertyId(isEditing ? null : prop.id)}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <ChevronRight 
+                                                                    size={14} 
+                                                                    className={`text-gray-400 transition-transform ${isEditing ? 'rotate-90' : ''}`}
+                                                                />
+                                                                <div>
+                                                                    <div className="font-medium text-sm text-gray-800">{prop.name}</div>
+                                                                    <div className="text-xs text-gray-500">
+                                                                        {prop.dataType} {prop.binding ? `| ${prop.binding}` : ''}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {(prop.glossaryTerms?.length || 0) > 0 && (
+                                                                    <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
+                                                                        {prop.glossaryTerms?.length} terms
+                                                                    </span>
+                                                                )}
+                                                                {(prop.aspects?.length || 0) > 0 && (
+                                                                    <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">
+                                                                        {prop.aspects?.length} aspects
+                                                                    </span>
+                                                                )}
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (confirm('Delete this property?')) {
+                                                                            deleteProperty(prop.id);
+                                                                        }
+                                                                    }}
+                                                                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
 
+                                                        {isEditing && (
+                                                            <div className="px-4 pb-4 pt-2 border-t border-gray-200 bg-white space-y-4">
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div>
+                                                                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Property Name</label>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={prop.name}
+                                                                            onChange={(e) => updateProperty(prop.id, { name: e.target.value })}
+                                                                            className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none"
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Data Type</label>
+                                                                        <select
+                                                                            value={prop.dataType}
+                                                                            onChange={(e) => updateProperty(prop.id, { dataType: e.target.value })}
+                                                                            className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-white"
+                                                                        >
+                                                                            <option value="STRING">STRING</option>
+                                                                            <option value="INTEGER">INTEGER</option>
+                                                                            <option value="FLOAT">FLOAT</option>
+                                                                            <option value="BOOLEAN">BOOLEAN</option>
+                                                                            <option value="DATE">DATE</option>
+                                                                            <option value="TIMESTAMP">TIMESTAMP</option>
+                                                                            <option value="ARRAY">ARRAY</option>
+                                                                            <option value="STRUCT">STRUCT</option>
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div>
+                                                                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Column Binding</label>
+                                                                    <select
+                                                                        value={prop.binding || ''}
+                                                                        onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
+                                                                        className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-white"
+                                                                    >
+                                                                        <option value="">Select column...</option>
+                                                                        {availableColumns.map(col => (
+                                                                            <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
+                                                                                {col.name} ({col.type})
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+
+                                                                <WikiEditor
+                                                                    content={prop.overview || prop.description}
+                                                                    onChange={(content) => updateProperty(prop.id, { overview: content, description: content })}
+                                                                    placeholder="Describe this property..."
+                                                                    history={prop.descriptionHistory || []}
+                                                                    onHistoryUpdate={(history) => updateProperty(prop.id, { descriptionHistory: history })}
+                                                                    label="Description"
+                                                                    minHeight="80px"
+                                                                />
+
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <AspectSelector
+                                                                        aspects={prop.aspects || []}
+                                                                        onChange={(aspects) => updateProperty(prop.id, { aspects })}
+                                                                        label="Property Aspects"
+                                                                    />
+                                                                    <GlossarySelector
+                                                                        selectedTerms={prop.glossaryTerms || []}
+                                                                        onChange={(glossaryTerms) => updateProperty(prop.id, { glossaryTerms })}
+                                                                        label="Glossary Terms"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
