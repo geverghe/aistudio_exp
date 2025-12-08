@@ -862,44 +862,37 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Glossary Terms - Collapsible */}
-                                {(entity.glossaryTerms?.length || 0) > 0 && (
-                                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                        <div 
-                                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between"
-                                            onClick={() => setExpandedPropertyId(expandedPropertyId === 'glossary' ? null : 'glossary')}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <ChevronRight 
-                                                    size={14} 
-                                                    className={`text-gray-400 transition-transform ${expandedPropertyId === 'glossary' ? 'rotate-90' : ''}`}
-                                                />
-                                                <BookOpen size={14} className="text-purple-500" />
-                                                <span className="text-sm font-medium text-gray-800">Business Terms</span>
-                                            </div>
-                                            <span className="text-xs text-gray-400">
-                                                {entity.glossaryTerms?.length} term{entity.glossaryTerms?.length !== 1 ? 's' : ''}
-                                            </span>
-                                        </div>
-                                        {expandedPropertyId === 'glossary' && (
-                                            <div className="px-5 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50">
-                                                <div className="space-y-2">
-                                                    {entity.glossaryTerms?.map(term => (
-                                                        <div key={term.id} className="text-xs">
-                                                            <span className="font-medium text-purple-700">{term.name}</span>
-                                                            {term.domain && (
-                                                                <span className="ml-2 text-gray-400">({term.domain})</span>
-                                                            )}
-                                                            {term.description && (
-                                                                <p className="text-gray-600 mt-0.5">{term.description}</p>
-                                                            )}
-                                                        </div>
-                                                    ))}
+                                {/* Glossary Terms - Each term as collapsible card */}
+                                {entity.glossaryTerms?.map(term => {
+                                    const isTermExpanded = expandedPropertyId === `term-${term.id}`;
+                                    return (
+                                        <div key={term.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                            <div 
+                                                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between"
+                                                onClick={() => setExpandedPropertyId(isTermExpanded ? null : `term-${term.id}`)}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <ChevronRight 
+                                                        size={14} 
+                                                        className={`text-gray-400 transition-transform ${isTermExpanded ? 'rotate-90' : ''}`}
+                                                    />
+                                                    <BookOpen size={14} className="text-purple-500" />
+                                                    <span className="text-sm font-medium text-gray-800">{term.name}</span>
                                                 </div>
+                                                {term.domain && (
+                                                    <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                                        {term.domain}
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
-                                )}
+                                            {isTermExpanded && term.description && (
+                                                <div className="px-5 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50">
+                                                    <p className="text-sm text-gray-600 leading-relaxed">{term.description}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
 
                                 {/* Entity Aspects - Each as collapsible card */}
                                 {entity.aspects?.map(aspect => {
@@ -992,12 +985,37 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                                 </div>
                                                             )}
                                                             {(prop.glossaryTerms?.length || 0) > 0 && (
-                                                                <div className="flex flex-wrap gap-1">
-                                                                    {prop.glossaryTerms?.map(term => (
-                                                                        <span key={term.id} className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-[10px]">
-                                                                            {term.name}
-                                                                        </span>
-                                                                    ))}
+                                                                <div className="space-y-1">
+                                                                    {prop.glossaryTerms?.map(term => {
+                                                                        const isPropTermExpanded = expandedPropertyId === `prop-term-${prop.id}-${term.id}`;
+                                                                        return (
+                                                                            <div key={term.id} className="border border-purple-100 rounded overflow-hidden">
+                                                                                <div 
+                                                                                    className="px-2 py-1 bg-purple-50/50 cursor-pointer hover:bg-purple-50 transition-colors flex items-center justify-between"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setExpandedPropertyId(isPropTermExpanded ? null : `prop-term-${prop.id}-${term.id}`);
+                                                                                    }}
+                                                                                >
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <ChevronRight 
+                                                                                            size={10} 
+                                                                                            className={`text-purple-400 transition-transform ${isPropTermExpanded ? 'rotate-90' : ''}`}
+                                                                                        />
+                                                                                        <span className="text-[10px] font-medium text-purple-700">{term.name}</span>
+                                                                                    </div>
+                                                                                    {term.domain && (
+                                                                                        <span className="text-[8px] text-purple-500">{term.domain}</span>
+                                                                                    )}
+                                                                                </div>
+                                                                                {isPropTermExpanded && term.description && (
+                                                                                    <div className="px-2 py-1.5 bg-white border-t border-purple-100">
+                                                                                        <p className="text-[10px] text-gray-600">{term.description}</p>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             )}
                                                             {(prop.aspects?.length || 0) > 0 && (
