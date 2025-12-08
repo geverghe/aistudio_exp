@@ -224,11 +224,14 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ model, setMode
       return (
           <FullPageEntityView 
             entity={entity} 
+            model={model}
+            setModel={setModel}
             onClose={() => {
                 setViewMode('GRAPH');
                 setFullScreenEntityId(null);
             }} 
             availableColumns={availableColumns}
+            currentEntityTableName={currentEntityTableName}
           />
       );
   }
@@ -459,7 +462,45 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ model, setMode
 
 // --- Subcomponents ---
 
-const FullPageEntityView: React.FC<{ entity: Entity, onClose: () => void, availableColumns: any[] }> = ({ entity, onClose, availableColumns }) => {
+interface FullPageEntityViewProps {
+    entity: Entity;
+    model: SemanticModel;
+    setModel: React.Dispatch<React.SetStateAction<SemanticModel>>;
+    onClose: () => void;
+    availableColumns: any[];
+    currentEntityTableName: string | null;
+}
+
+const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({ 
+    entity, model, setModel, onClose, availableColumns, currentEntityTableName 
+}) => {
+    const [expandedPropertyId, setExpandedPropertyId] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'config' | 'properties' | 'dashboard'>('config');
+
+    const updateEntity = (updates: Partial<Entity>) => {
+        setModel(prev => ({
+            ...prev,
+            entities: prev.entities.map(ent => 
+                ent.id === entity.id ? { ...ent, ...updates } : ent
+            )
+        }));
+    };
+
+    const updateProperty = (propId: string, updates: Partial<Property>) => {
+        setModel(prev => ({
+            ...prev,
+            entities: prev.entities.map(ent => {
+                if (ent.id !== entity.id) return ent;
+                return {
+                    ...ent,
+                    properties: ent.properties.map(p => 
+                        p.id === propId ? { ...p, ...updates } : p
+                    )
+                };
+            })
+        }));
+    };
+
     return (
         <div className="h-full bg-gray-50 flex flex-col">
             <div className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between shadow-sm">
@@ -481,63 +522,214 @@ const FullPageEntityView: React.FC<{ entity: Entity, onClose: () => void, availa
                     <button onClick={onClose} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white">
                         <Minimize2 size={16} /> Exit Full Screen
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm">
-                        <Save size={16} /> Save Changes
+                </div>
+            </div>
+
+            <div className="bg-white border-b border-gray-200 px-8">
+                <div className="flex gap-1">
+                    <button
+                        onClick={() => setActiveTab('config')}
+                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                            activeTab === 'config' 
+                                ? 'border-blue-600 text-blue-600' 
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        Configuration
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('properties')}
+                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                            activeTab === 'properties' 
+                                ? 'border-blue-600 text-blue-600' 
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        Properties ({entity.properties.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('dashboard')}
+                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                            activeTab === 'dashboard' 
+                                ? 'border-blue-600 text-blue-600' 
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        Dashboard
                     </button>
                 </div>
             </div>
 
             <div className="flex-1 overflow-auto p-8">
-                <div className="max-w-7xl mx-auto grid grid-cols-12 gap-8">
-                    {/* Left Column: Metadata & Config */}
-                    <div className="col-span-12 lg:col-span-4 space-y-6">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <h3 className="text-base font-bold text-gray-800 mb-4">Configuration</h3>
-                             <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs text-gray-400 mb-1">Entity Name</label>
-                                    <input 
-                                        type="text" 
-                                        defaultValue={entity.name}
-                                        className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded p-2 focus:border-blue-500 outline-none" 
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-gray-400 mb-1">Description</label>
-                                    <textarea 
-                                        defaultValue={entity.description}
-                                        className="w-full text-sm text-gray-600 border border-gray-300 rounded p-2 focus:border-blue-500 outline-none resize-none bg-gray-50"
-                                        rows={4}
+                <div className="max-w-5xl mx-auto">
+                    {activeTab === 'config' && (
+                        <div className="space-y-6">
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Settings2 size={18} className="text-gray-500" />
+                                    Entity Configuration
+                                </h3>
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Entity Name</label>
+                                        <input 
+                                            type="text" 
+                                            value={entity.name}
+                                            onChange={(e) => updateEntity({ name: e.target.value })}
+                                            className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" 
+                                        />
+                                    </div>
+                                    <WikiEditor
+                                        content={entity.overview || entity.description}
+                                        onChange={(content) => updateEntity({ overview: content, description: content })}
+                                        placeholder="Add a detailed description of this entity..."
+                                        history={entity.descriptionHistory || []}
+                                        onHistoryUpdate={(history) => updateEntity({ descriptionHistory: history })}
+                                        label="Overview"
+                                        minHeight="150px"
                                     />
                                 </div>
                             </div>
-                        </div>
 
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 className="text-base font-bold text-gray-800 mb-4">Metadata</h3>
+                                <div className="space-y-6">
+                                    <AspectSelector
+                                        aspects={entity.aspects || []}
+                                        onChange={(aspects) => updateEntity({ aspects })}
+                                        label="Entity Aspects"
+                                    />
+                                    <GlossarySelector
+                                        selectedTerms={entity.glossaryTerms || []}
+                                        onChange={(glossaryTerms) => updateEntity({ glossaryTerms })}
+                                        label="Glossary Terms"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Database size={18} className="text-blue-600" />
+                                    Physical Binding
+                                </h3>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-sm text-gray-600">BigQuery Table</span>
+                                    <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700 font-medium border border-green-200">Active</span>
+                                </div>
+                                <div className="text-sm font-mono bg-gray-50 border border-gray-200 px-4 py-3 rounded-lg text-gray-700 break-all">
+                                    {currentEntityTableName || 'No binding detected'}
+                                </div>
+                                <div className="mt-2 text-xs text-gray-400">
+                                    Project: <span className="text-gray-600">vergheseg-sandbox</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'properties' && (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-base font-bold text-gray-800">Properties</h3>
+                                <button className="text-blue-600 text-sm font-medium hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                                    <Plus size={14} /> Add Property
+                                </button>
+                            </div>
+                            {entity.properties.map((prop) => {
+                                const isExpanded = expandedPropertyId === prop.id;
+                                return (
+                                    <div key={prop.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                        <div 
+                                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                            onClick={() => setExpandedPropertyId(isExpanded ? null : prop.id)}
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-3">
+                                                    <ChevronRight 
+                                                        size={16} 
+                                                        className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                                    />
+                                                    <div>
+                                                        <div className="font-medium text-gray-800">{prop.name}</div>
+                                                        <div className="text-xs text-gray-500 mt-0.5">
+                                                            {prop.binding || 'Not bound'} | {prop.dataType}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {(prop.glossaryTerms?.length || 0) > 0 && (
+                                                        <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">
+                                                            {prop.glossaryTerms?.length} terms
+                                                        </span>
+                                                    )}
+                                                    {(prop.aspects?.length || 0) > 0 && (
+                                                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+                                                            {prop.aspects?.length} aspects
+                                                        </span>
+                                                    )}
+                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-mono">{prop.dataType}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {isExpanded && (
+                                            <div className="px-6 pb-6 pt-2 border-t border-gray-100 bg-gray-50/50 space-y-6">
+                                                <WikiEditor
+                                                    content={prop.overview || prop.description}
+                                                    onChange={(content) => updateProperty(prop.id, { overview: content, description: content })}
+                                                    placeholder="Add a detailed description of this property..."
+                                                    history={prop.descriptionHistory || []}
+                                                    onHistoryUpdate={(history) => updateProperty(prop.id, { descriptionHistory: history })}
+                                                    label="Property Description"
+                                                    minHeight="100px"
+                                                />
+
+                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                    <AspectSelector
+                                                        aspects={prop.aspects || []}
+                                                        onChange={(aspects) => updateProperty(prop.id, { aspects })}
+                                                        label="Property Aspects"
+                                                    />
+                                                    <GlossarySelector
+                                                        selectedTerms={prop.glossaryTerms || []}
+                                                        onChange={(glossaryTerms) => updateProperty(prop.id, { glossaryTerms })}
+                                                        label="Glossary Terms"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Column Binding</label>
+                                                    <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-200">
+                                                        <Database size={16} className="text-blue-500" />
+                                                        <select
+                                                            value={prop.binding || ''}
+                                                            onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
+                                                            className="flex-1 text-sm border-0 outline-none bg-transparent"
+                                                        >
+                                                            <option value="">Select column...</option>
+                                                            {availableColumns.map(col => (
+                                                                <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
+                                                                    {col.name} ({col.type})
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {activeTab === 'dashboard' && (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <h3 className="text-base font-bold text-gray-800 mb-4">Properties</h3>
-                             {entity.properties.map(p => (
-                                 <div key={p.id} className="py-2 border-b border-gray-100 last:border-0 flex justify-between">
-                                     <div>
-                                         <div className="font-medium text-sm text-gray-800">{p.name}</div>
-                                         <div className="text-xs text-gray-400">{p.dataType}</div>
-                                     </div>
-                                     <div className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded self-start">
-                                         {p.binding || 'Unbound'}
-                                     </div>
-                                 </div>
-                             ))}
-                        </div>
-                    </div>
-
-                    {/* Right Column: Dashboard Expanded */}
-                    <div className="col-span-12 lg:col-span-8">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-full">
                             <h3 className="text-base font-bold text-gray-800 mb-6 flex items-center gap-2">
                                 <BarChart3 className="text-blue-500"/> Instance Explorer
                             </h3>
                             <EntityDashboard entity={entity} isFullPage />
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>
