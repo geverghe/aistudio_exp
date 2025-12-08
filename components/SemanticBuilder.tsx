@@ -1,7 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Entity, SemanticModel, EntityType, Relationship } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search } from 'lucide-react';
+import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory } from '../types';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText } from 'lucide-react';
 import { suggestEntitiesFromDescription } from '../services/geminiService';
+import { WikiEditor } from './WikiEditor';
+import { AspectSelector } from './AspectSelector';
+import { GlossarySelector } from './GlossarySelector';
 
 // Mock Schema for BigQuery Tables to power the dropdowns
 const MOCK_BQ_SCHEMA: Record<string, Array<{ name: string, type: string }>> = {
@@ -546,6 +549,32 @@ const EntityConfigView: React.FC<any> = ({
     editingBindingId, setEditingBindingId, tempBindingValue, setTempBindingValue, 
     saveBinding, startEditingBinding, onLinkClick 
 }) => {
+    const [expandedPropertyId, setExpandedPropertyId] = useState<string | null>(null);
+
+    const updateEntity = (updates: Partial<Entity>) => {
+        setModel(prev => ({
+            ...prev,
+            entities: prev.entities.map(ent => 
+                ent.id === entity.id ? { ...ent, ...updates } : ent
+            )
+        }));
+    };
+
+    const updateProperty = (propId: string, updates: Partial<Property>) => {
+        setModel(prev => ({
+            ...prev,
+            entities: prev.entities.map(ent => {
+                if (ent.id !== entity.id) return ent;
+                return {
+                    ...ent,
+                    properties: ent.properties.map(p => 
+                        p.id === propId ? { ...p, ...updates } : p
+                    )
+                };
+            })
+        }));
+    };
+
     return (
         <div className="p-6">
             <div className="mb-8">
@@ -556,31 +585,34 @@ const EntityConfigView: React.FC<any> = ({
                         <input 
                             type="text" 
                             value={entity.name}
-                            onChange={(e) => {
-                                const newName = e.target.value;
-                                setModel(prev => ({
-                                    ...prev,
-                                    entities: prev.entities.map(ent => ent.id === entity.id ? {...ent, name: newName} : ent)
-                                }))
-                            }}
+                            onChange={(e) => updateEntity({ name: e.target.value })}
                             className="w-full text-sm font-medium text-gray-900 border-b border-gray-200 focus:border-blue-500 outline-none pb-1" 
                         />
                     </div>
-                    <div>
-                        <label className="block text-xs text-gray-400 mb-1">Description</label>
-                        <textarea 
-                            value={entity.description}
-                            onChange={(e) => {
-                                const newDesc = e.target.value;
-                                setModel(prev => ({
-                                    ...prev,
-                                    entities: prev.entities.map(ent => ent.id === entity.id ? {...ent, description: newDesc} : ent)
-                                }))
-                            }}
-                            className="w-full text-sm text-gray-600 border border-gray-200 rounded p-2 focus:border-blue-500 outline-none resize-none bg-gray-50"
-                            rows={3}
-                        />
-                    </div>
+                    <WikiEditor
+                        content={entity.overview || entity.description}
+                        onChange={(content) => updateEntity({ overview: content, description: content })}
+                        placeholder="Add a detailed description of this entity..."
+                        history={entity.descriptionHistory || []}
+                        onHistoryUpdate={(history) => updateEntity({ descriptionHistory: history })}
+                        label="Overview"
+                        minHeight="100px"
+                    />
+                </div>
+            </div>
+
+            <div className="mb-8">
+                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-6">
+                    <AspectSelector
+                        aspects={entity.aspects || []}
+                        onChange={(aspects) => updateEntity({ aspects })}
+                        label="Entity Aspects"
+                    />
+                    <GlossarySelector
+                        selectedTerms={entity.glossaryTerms || []}
+                        onChange={(glossaryTerms) => updateEntity({ glossaryTerms })}
+                        label="Glossary Terms"
+                    />
                 </div>
             </div>
 
@@ -611,72 +643,139 @@ const EntityConfigView: React.FC<any> = ({
                     <button className="text-blue-600 text-xs font-medium hover:bg-blue-50 px-2 py-1 rounded transition-colors">+ Add Property</button>
                 </div>
                 <div className="space-y-3">
-                    {entity.properties.map((prop) => (
-                        <div key={prop.id} className="p-3 border border-gray-200 rounded-lg bg-white group hover:border-blue-300 hover:shadow-sm transition-all relative">
-                            <div className="flex justify-between items-start mb-1">
-                                <div className="font-medium text-sm text-gray-800">{prop.name}</div>
-                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">{prop.dataType}</span>
-                            </div>
-                            
-                            {/* Binding Editor */}
-                            {editingBindingId === prop.id ? (
-                                <div className="mt-2 bg-blue-50/50 p-2 rounded border border-blue-100">
-                                    <label className="block text-[10px] text-blue-600 font-semibold mb-1 uppercase">Map to Column</label>
+                    {entity.properties.map((prop) => {
+                        const isExpanded = expandedPropertyId === prop.id;
+                        return (
+                        <div key={prop.id} className="border border-gray-200 rounded-lg bg-white group hover:border-blue-300 hover:shadow-sm transition-all relative overflow-hidden">
+                            <div 
+                                className="p-3 cursor-pointer"
+                                onClick={() => setExpandedPropertyId(isExpanded ? null : prop.id)}
+                            >
+                                <div className="flex justify-between items-start mb-1">
                                     <div className="flex items-center gap-2">
-                                        <div className="relative flex-1">
-                                            <select
-                                                value={tempBindingValue}
-                                                onChange={(e) => setTempBindingValue(e.target.value)}
-                                                className="w-full text-xs border border-blue-300 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none"
-                                                autoFocus
-                                            >
-                                                <option value="">Select column...</option>
-                                                {availableColumns.map(col => (
-                                                    <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
-                                                        {col.name} ({col.type})
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="absolute right-2 top-2 text-gray-400 pointer-events-none" size={12}/>
-                                        </div>
-                                        <button onClick={() => saveBinding(entity.id, prop.id)} className="text-white bg-green-500 hover:bg-green-600 p-1 rounded shadow-sm"><Check size={14}/></button>
-                                        <button onClick={() => setEditingBindingId(null)} className="text-gray-500 hover:bg-gray-200 p-1 rounded"><X size={14}/></button>
+                                        <ChevronRight 
+                                            size={14} 
+                                            className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                        />
+                                        <div className="font-medium text-sm text-gray-800">{prop.name}</div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {(prop.glossaryTerms?.length || 0) > 0 && (
+                                            <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">
+                                                {prop.glossaryTerms?.length} terms
+                                            </span>
+                                        )}
+                                        {(prop.aspects?.length || 0) > 0 && (
+                                            <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
+                                                {prop.aspects?.length} aspects
+                                            </span>
+                                        )}
+                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">{prop.dataType}</span>
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="group/binding flex items-center justify-between mt-1">
-                                    <div className="flex items-center gap-1.5 overflow-hidden">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></div>
-                                        <span className="text-xs text-gray-500 truncate font-mono" title={prop.binding || 'No binding'}>
-                                            {prop.binding ? prop.binding.split('.')[1] : 'Unbound'}
-                                        </span>
+                                
+                                {!isExpanded && (
+                                    <div className="group/binding flex items-center justify-between mt-1 ml-6">
+                                        <div className="flex items-center gap-1.5 overflow-hidden">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></div>
+                                            <span className="text-xs text-gray-500 truncate font-mono" title={prop.binding || 'No binding'}>
+                                                {prop.binding ? prop.binding.split('.')[1] : 'Unbound'}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            startEditingBinding(prop.id, prop.binding);
-                                        }}
-                                        className="opacity-0 group-hover/binding:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity p-1 rounded hover:bg-gray-100"
-                                        title="Edit Binding"
-                                    >
-                                        <Pencil size={12} />
-                                    </button>
+                                )}
+                            </div>
+
+                            {isExpanded && (
+                                <div className="px-4 pb-4 space-y-4 border-t border-gray-100 bg-gray-50/50">
+                                    <div className="pt-4">
+                                        <WikiEditor
+                                            content={prop.overview || prop.description}
+                                            onChange={(content) => updateProperty(prop.id, { overview: content, description: content })}
+                                            placeholder="Add a detailed description of this property..."
+                                            history={prop.descriptionHistory || []}
+                                            onHistoryUpdate={(history) => updateProperty(prop.id, { descriptionHistory: history })}
+                                            label="Property Description"
+                                            minHeight="80px"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <AspectSelector
+                                            aspects={prop.aspects || []}
+                                            onChange={(aspects) => updateProperty(prop.id, { aspects })}
+                                            label="Property Aspects"
+                                        />
+                                        <GlossarySelector
+                                            selectedTerms={prop.glossaryTerms || []}
+                                            onChange={(glossaryTerms) => updateProperty(prop.id, { glossaryTerms })}
+                                            label="Glossary Terms"
+                                        />
+                                    </div>
+                                    
+                                    {/* Binding Editor */}
+                                    <div className="pt-2">
+                                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Column Binding</label>
+                                        {editingBindingId === prop.id ? (
+                                            <div className="bg-blue-50/50 p-2 rounded border border-blue-100">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative flex-1">
+                                                        <select
+                                                            value={tempBindingValue}
+                                                            onChange={(e) => setTempBindingValue(e.target.value)}
+                                                            className="w-full text-xs border border-blue-300 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none"
+                                                            autoFocus
+                                                        >
+                                                            <option value="">Select column...</option>
+                                                            {availableColumns.map(col => (
+                                                                <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
+                                                                    {col.name} ({col.type})
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <ChevronDown className="absolute right-2 top-2 text-gray-400 pointer-events-none" size={12}/>
+                                                    </div>
+                                                    <button onClick={() => saveBinding(entity.id, prop.id)} className="text-white bg-green-500 hover:bg-green-600 p-1 rounded shadow-sm"><Check size={14}/></button>
+                                                    <button onClick={() => setEditingBindingId(null)} className="text-gray-500 hover:bg-gray-200 p-1 rounded"><X size={14}/></button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-between bg-white p-2 rounded border border-gray-200">
+                                                <div className="flex items-center gap-2">
+                                                    <Database size={14} className="text-blue-500" />
+                                                    <span className="text-sm font-mono text-gray-700">
+                                                        {prop.binding || 'Not bound'}
+                                                    </span>
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        startEditingBinding(prop.id, prop.binding);
+                                                    }}
+                                                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                                >
+                                                    Edit
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="pt-2 flex justify-end">
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onLinkClick(prop.id);
+                                            }}
+                                            className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                                        >
+                                            <Link size={12} />
+                                            Link to another entity
+                                        </button>
+                                    </div>
                                 </div>
                             )}
-
-                            {/* Link Button */}
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onLinkClick(prop.id);
-                                }}
-                                className="absolute top-2 right-2 text-gray-300 hover:text-blue-600 p-1 rounded hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all"
-                                title="Link to another entity"
-                            >
-                                <Link size={14} />
-                            </button>
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
         </div>
