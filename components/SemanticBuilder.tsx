@@ -502,8 +502,8 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
     };
 
     return (
-        <div className="h-full bg-gray-50 flex flex-col">
-            <div className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between shadow-sm">
+        <div className="h-full bg-gray-50 flex flex-col overflow-hidden" style={{ height: '100vh' }}>
+            <div className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between shadow-sm shrink-0">
                 <div className="flex items-center gap-4">
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-600">
                         <ArrowLeft size={20} />
@@ -525,7 +525,7 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                 </div>
             </div>
 
-            <div className="bg-white border-b border-gray-200 px-8">
+            <div className="bg-white border-b border-gray-200 px-8 shrink-0">
                 <div className="flex gap-1">
                     <button
                         onClick={() => setActiveTab('config')}
