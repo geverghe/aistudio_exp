@@ -90,8 +90,6 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
   // Model Configuration State
   const [isModelConfigExpanded, setIsModelConfigExpanded] = useState(false);
   const [isEditingModelDesc, setIsEditingModelDesc] = useState(false);
-  const [showModelAspectSelector, setShowModelAspectSelector] = useState(false);
-  const [showModelGlossarySelector, setShowModelGlossarySelector] = useState(false);
   
   // Helper to get selected objects
   const selectedEntity = useMemo(() => 
@@ -423,7 +421,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
              )}
          </div>
          <div className="flex-1 overflow-y-auto p-2">
-            {/* Model Configuration Section */}
+            {/* Definition Section */}
             <div className="mb-3">
               <div 
                 onClick={() => setIsModelConfigExpanded(!isModelConfigExpanded)}
@@ -431,8 +429,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
               >
                 <div className="flex items-center gap-2">
                   <ChevronRight size={14} className={`text-gray-400 transition-transform ${isModelConfigExpanded ? 'rotate-90' : ''}`} />
-                  <Database size={14} className="text-blue-500" />
-                  <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">Model Configuration</span>
+                  <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">Definition</span>
                 </div>
                 <div className="flex items-center gap-1">
                   {(model.aspects?.length || 0) > 0 && (
@@ -446,6 +443,12 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
               
               {isModelConfigExpanded && (
                 <div className="ml-4 mt-2 space-y-3 border-l-2 border-gray-100 pl-3">
+                  {/* Git Reference */}
+                  <div className="bg-blue-50 rounded-lg p-2 flex items-center gap-2">
+                    <FileText size={12} className="text-blue-500" />
+                    <span className="text-[10px] text-blue-700 font-mono">models/{model.id}.yaml</span>
+                  </div>
+                  
                   {/* Model Description */}
                   <div className="bg-gray-50 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
@@ -464,61 +467,22 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
                     )}
                   </div>
                   
-                  {/* Model Aspects */}
+                  {/* Model Aspects - Inline Editor */}
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-600">Aspects ({model.aspects?.length || 0})</span>
-                      <button
-                        onClick={() => setShowModelAspectSelector(true)}
-                        className="text-xs text-blue-600 hover:text-blue-700"
-                      >
-                        Manage
-                      </button>
-                    </div>
-                    {(model.aspects?.length || 0) > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {model.aspects?.slice(0, 3).map(aspect => {
-                          const aspectType = AVAILABLE_ASPECT_TYPES.find(at => at.id === aspect.aspectTypeId);
-                          return (
-                            <span key={aspect.aspectTypeId} className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px]">
-                              {aspectType?.name || aspect.aspectTypeId}
-                            </span>
-                          );
-                        })}
-                        {(model.aspects?.length || 0) > 3 && (
-                          <span className="text-[10px] text-gray-400">+{(model.aspects?.length || 0) - 3} more</span>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic">No aspects assigned</p>
-                    )}
+                    <AspectSelector
+                      aspects={model.aspects || []}
+                      onChange={(aspects) => setModel(prev => ({ ...prev, aspects }))}
+                      label="Aspects"
+                    />
                   </div>
                   
-                  {/* Model Glossary Terms */}
+                  {/* Model Glossary Terms - Inline Editor */}
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-600">Glossary Terms ({model.glossaryTerms?.length || 0})</span>
-                      <button
-                        onClick={() => setShowModelGlossarySelector(true)}
-                        className="text-xs text-blue-600 hover:text-blue-700"
-                      >
-                        Manage
-                      </button>
-                    </div>
-                    {(model.glossaryTerms?.length || 0) > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {model.glossaryTerms?.slice(0, 3).map(term => (
-                          <span key={term.id} className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px]">
-                            {term.name}
-                          </span>
-                        ))}
-                        {(model.glossaryTerms?.length || 0) > 3 && (
-                          <span className="text-[10px] text-gray-400">+{(model.glossaryTerms?.length || 0) - 3} more</span>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic">No terms linked</p>
-                    )}
+                    <GlossarySelector
+                      selectedTerms={model.glossaryTerms || []}
+                      onChange={(glossaryTerms) => setModel(prev => ({ ...prev, glossaryTerms }))}
+                      label="Glossary Terms"
+                    />
                   </div>
                 </div>
               )}
@@ -728,35 +692,6 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
         </div>
       )}
 
-      {/* Model Aspect Selector */}
-      {showModelAspectSelector && (
-        <AspectSelector
-          currentAspects={model.aspects || []}
-          onSave={(aspects) => {
-            setModel(prev => ({
-              ...prev,
-              aspects
-            }));
-            setShowModelAspectSelector(false);
-          }}
-          onClose={() => setShowModelAspectSelector(false)}
-        />
-      )}
-
-      {/* Model Glossary Selector */}
-      {showModelGlossarySelector && (
-        <GlossarySelector
-          currentTerms={model.glossaryTerms || []}
-          onSave={(terms) => {
-            setModel(prev => ({
-              ...prev,
-              glossaryTerms: terms
-            }));
-            setShowModelGlossarySelector(false);
-          }}
-          onClose={() => setShowModelGlossarySelector(false)}
-        />
-      )}
     </div>
   );
 };
