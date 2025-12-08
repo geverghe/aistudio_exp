@@ -650,38 +650,46 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                     </div>
                                 )}
 
-                                {/* Entity Aspects */}
-                                {(entity.aspects?.length || 0) > 0 && (
-                                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                                        <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                            <Tag size={16} className="text-green-500" />
-                                            Data Aspects
-                                        </h4>
-                                        <div className="space-y-3">
-                                            {entity.aspects?.map(aspect => {
-                                                const aspectType = AVAILABLE_ASPECT_TYPES.find(at => at.id === aspect.aspectTypeId);
-                                                const valueEntries = Object.entries(aspect.values || {}).filter(([_, v]) => v !== undefined && v !== '');
-                                                return (
-                                                    <div key={aspect.aspectTypeId} className="text-xs">
-                                                        <div className="px-2 py-1 bg-green-100 text-green-700 rounded font-medium inline-block mb-1">
-                                                            {aspectType?.name || aspect.aspectTypeId}
-                                                        </div>
-                                                        {valueEntries.length > 0 && (
-                                                            <div className="ml-2 space-y-1 text-gray-600">
-                                                                {valueEntries.map(([key, val]) => (
-                                                                    <div key={key} className="flex gap-2">
-                                                                        <span className="text-gray-400">{key.replace(/_/g, ' ')}:</span>
-                                                                        <span>{String(val)}</span>
-                                                                    </div>
-                                                                ))}
+                                {/* Entity Aspects - Each as collapsible card */}
+                                {entity.aspects?.map(aspect => {
+                                    const aspectType = AVAILABLE_ASPECT_TYPES.find(at => at.id === aspect.aspectTypeId);
+                                    const valueEntries = Object.entries(aspect.values || {}).filter(([_, v]) => v !== undefined && v !== '');
+                                    const isExpanded = expandedPropertyId === `aspect-${aspect.aspectTypeId}`;
+                                    return (
+                                        <div key={aspect.aspectTypeId} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                            <div 
+                                                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between"
+                                                onClick={() => setExpandedPropertyId(isExpanded ? null : `aspect-${aspect.aspectTypeId}`)}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <ChevronRight 
+                                                        size={14} 
+                                                        className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                                    />
+                                                    <Tag size={14} className="text-green-500" />
+                                                    <span className="text-sm font-medium text-gray-800">
+                                                        {aspectType?.name || aspect.aspectTypeId}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs text-gray-400">
+                                                    {valueEntries.length} field{valueEntries.length !== 1 ? 's' : ''}
+                                                </span>
+                                            </div>
+                                            {isExpanded && valueEntries.length > 0 && (
+                                                <div className="px-5 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50">
+                                                    <div className="space-y-2 text-xs">
+                                                        {valueEntries.map(([key, val]) => (
+                                                            <div key={key} className="flex gap-2">
+                                                                <span className="text-gray-500 capitalize">{key.replace(/_/g, ' ')}:</span>
+                                                                <span className="text-gray-700">{String(val)}</span>
                                                             </div>
-                                                        )}
+                                                        ))}
                                                     </div>
-                                                );
-                                            })}
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })}
 
                                 {/* Properties Summary */}
                                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
