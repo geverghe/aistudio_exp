@@ -475,6 +475,7 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
     entity, model, setModel, onClose, availableColumns, currentEntityTableName 
 }) => {
     const [expandedPropertyId, setExpandedPropertyId] = useState<string | null>(null);
+    const [expandedNestedId, setExpandedNestedId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'config' | 'dashboard'>('dashboard');
     const [expandedConfigSection, setExpandedConfigSection] = useState<'entity' | 'properties' | null>('entity');
     const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
@@ -987,14 +988,14 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                             {(prop.glossaryTerms?.length || 0) > 0 && (
                                                                 <div className="space-y-1">
                                                                     {prop.glossaryTerms?.map(term => {
-                                                                        const isPropTermExpanded = expandedPropertyId === `prop-term-${prop.id}-${term.id}`;
+                                                                        const isPropTermExpanded = expandedNestedId === `prop-term-${prop.id}-${term.id}`;
                                                                         return (
                                                                             <div key={term.id} className="border border-purple-100 rounded overflow-hidden">
                                                                                 <div 
                                                                                     className="px-2 py-1 bg-purple-50/50 cursor-pointer hover:bg-purple-50 transition-colors flex items-center justify-between"
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation();
-                                                                                        setExpandedPropertyId(isPropTermExpanded ? null : `prop-term-${prop.id}-${term.id}`);
+                                                                                        setExpandedNestedId(isPropTermExpanded ? null : `prop-term-${prop.id}-${term.id}`);
                                                                                     }}
                                                                                 >
                                                                                     <div className="flex items-center gap-1">
@@ -1023,14 +1024,14 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                                     {prop.aspects?.map(aspect => {
                                                                         const aspectType = AVAILABLE_ASPECT_TYPES.find(at => at.id === aspect.aspectTypeId);
                                                                         const valueEntries = Object.entries(aspect.values || {}).filter(([_, v]) => v !== undefined && v !== '');
-                                                                        const isPropAspectExpanded = expandedPropertyId === `prop-aspect-${prop.id}-${aspect.aspectTypeId}`;
+                                                                        const isPropAspectExpanded = expandedNestedId === `prop-aspect-${prop.id}-${aspect.aspectTypeId}`;
                                                                         return (
                                                                             <div key={aspect.aspectTypeId} className="border border-green-100 rounded overflow-hidden">
                                                                                 <div 
                                                                                     className="px-2 py-1 bg-green-50/50 cursor-pointer hover:bg-green-50 transition-colors flex items-center justify-between"
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation();
-                                                                                        setExpandedPropertyId(isPropAspectExpanded ? null : `prop-aspect-${prop.id}-${aspect.aspectTypeId}`);
+                                                                                        setExpandedNestedId(isPropAspectExpanded ? null : `prop-aspect-${prop.id}-${aspect.aspectTypeId}`);
                                                                                     }}
                                                                                 >
                                                                                     <div className="flex items-center gap-1">
