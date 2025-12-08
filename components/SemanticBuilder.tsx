@@ -2425,6 +2425,98 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
         return typeMap[dataType?.toUpperCase()] || 'STRING';
     };
 
+    const generateSpannerDDL = () => {
+        let ddl = `-- Spanner Graph DDL for ${model.name}\n`;
+        ddl += `-- Generated: ${new Date().toISOString()}\n`;
+        ddl += `-- Project: ${project || 'project'}\n`;
+        ddl += `-- Instance: ${instance || 'instance'}\n`;
+        ddl += `-- Database: ${dataset || 'database'}\n\n`;
+        
+        // Create node tables for entities
+        ddl += `-- Node Tables (Entities)\n`;
+        ddl += `-- ========================\n\n`;
+        
+        model.entities.forEach(entity => {
+            const tableName = entity.name.replace(/\s+/g, '_');
+            
+            ddl += `-- ${entity.type || 'ENTITY'}: ${entity.name}\n`;
+            if (entity.description) {
+                ddl += `-- ${entity.description}\n`;
+            }
+            ddl += `CREATE TABLE ${tableName} (\n`;
+            
+            // Find primary key (first property or one named 'id')
+            const pkProp = entity.properties.find(p => p.name.toLowerCase() === 'id') || entity.properties[0];
+            
+            entity.properties.forEach((prop, idx) => {
+                const columnName = prop.name.replace(/\s+/g, '_');
+                const spannerType = mapDataTypeToSpanner(prop.dataType);
+                const isLast = idx === entity.properties.length - 1;
+                ddl += `  ${columnName} ${spannerType}`;
+                ddl += isLast ? '\n' : ',\n';
+            });
+            
+            ddl += `) PRIMARY KEY (${pkProp?.name.replace(/\s+/g, '_') || 'id'});\n\n`;
+        });
+        
+        // Create property graph
+        ddl += `-- Property Graph Definition\n`;
+        ddl += `-- =========================\n\n`;
+        ddl += `CREATE OR REPLACE PROPERTY GRAPH ${model.name.replace(/\s+/g, '_')}Graph\n`;
+        ddl += `  NODE TABLES (\n`;
+        
+        model.entities.forEach((entity, idx) => {
+            const tableName = entity.name.replace(/\s+/g, '_');
+            const isLast = idx === model.entities.length - 1;
+            ddl += `    ${tableName}`;
+            ddl += isLast ? '\n' : ',\n';
+        });
+        
+        ddl += `  )`;
+        
+        // Add edge tables for relationships
+        if (model.relationships.length > 0) {
+            ddl += `\n  EDGE TABLES (\n`;
+            
+            model.relationships.forEach((rel, idx) => {
+                const source = model.entities.find(e => e.id === rel.sourceEntityId);
+                const target = model.entities.find(e => e.id === rel.targetEntityId);
+                const sourceProp = source?.properties.find(p => p.id === rel.sourcePropertyId);
+                const targetProp = target?.properties.find(p => p.id === rel.targetPropertyId);
+                const edgeName = `${source?.name.replace(/\s+/g, '_')}_to_${target?.name.replace(/\s+/g, '_')}`;
+                const isLast = idx === model.relationships.length - 1;
+                
+                ddl += `    ${edgeName}\n`;
+                ddl += `      SOURCE KEY (${sourceProp?.name.replace(/\s+/g, '_') || 'id'}) REFERENCES ${source?.name.replace(/\s+/g, '_')}\n`;
+                ddl += `      DESTINATION KEY (${targetProp?.name.replace(/\s+/g, '_') || 'id'}) REFERENCES ${target?.name.replace(/\s+/g, '_')}`;
+                ddl += isLast ? '\n' : ',\n';
+            });
+            
+            ddl += `  )`;
+        }
+        
+        ddl += `;\n`;
+        
+        return ddl;
+    };
+    
+    const mapDataTypeToSpanner = (dataType: string): string => {
+        const typeMap: Record<string, string> = {
+            'STRING': 'STRING(MAX)',
+            'INTEGER': 'INT64',
+            'FLOAT': 'FLOAT64',
+            'BOOLEAN': 'BOOL',
+            'TIMESTAMP': 'TIMESTAMP',
+            'DATE': 'DATE',
+            'DATETIME': 'TIMESTAMP',
+            'TIME': 'STRING(MAX)',
+            'BYTES': 'BYTES(MAX)',
+            'NUMERIC': 'NUMERIC',
+            'JSON': 'JSON',
+        };
+        return typeMap[dataType?.toUpperCase()] || 'STRING(MAX)';
+    };
+
     if (deployed) {
         return (
             <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-gray-100">
@@ -2669,45 +2761,41 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                             <div className="flex-1">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
-                                        {selectedTarget === 'looker' ? 'LookML Preview' : 'Deployment Preview'}
+                                        Deployment Preview
                                     </h3>
                                     
-                                    {selectedTarget === 'bigquery' && (
-                                        <div className="flex bg-gray-100 rounded-lg p-1">
-                                            <button
-                                                onClick={() => setPreviewMode('resources')}
-                                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                                    previewMode === 'resources' 
-                                                        ? 'bg-white text-gray-900 shadow-sm' 
-                                                        : 'text-gray-600 hover:text-gray-900'
-                                                }`}
-                                            >
-                                                Resources
-                                            </button>
-                                            <button
-                                                onClick={() => setPreviewMode('ddl')}
-                                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                                    previewMode === 'ddl' 
-                                                        ? 'bg-white text-gray-900 shadow-sm' 
-                                                        : 'text-gray-600 hover:text-gray-900'
-                                                }`}
-                                            >
-                                                DDL Code
-                                            </button>
-                                        </div>
-                                    )}
+                                    <div className="flex bg-gray-100 rounded-lg p-1">
+                                        <button
+                                            onClick={() => setPreviewMode('resources')}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                                previewMode === 'resources' 
+                                                    ? 'bg-white text-gray-900 shadow-sm' 
+                                                    : 'text-gray-600 hover:text-gray-900'
+                                            }`}
+                                        >
+                                            Resources
+                                        </button>
+                                        <button
+                                            onClick={() => setPreviewMode('ddl')}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                                previewMode === 'ddl' 
+                                                    ? 'bg-white text-gray-900 shadow-sm' 
+                                                    : 'text-gray-600 hover:text-gray-900'
+                                            }`}
+                                        >
+                                            {selectedTarget === 'looker' ? 'LookML' : 'DDL Code'}
+                                        </button>
+                                    </div>
                                 </div>
                                 
-                                {selectedTarget === 'looker' ? (
+                                {previewMode === 'ddl' ? (
                                     <div className="bg-gray-900 rounded-2xl p-6 h-[600px] overflow-auto">
                                         <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">
-                                            {generateLookML()}
-                                        </pre>
-                                    </div>
-                                ) : selectedTarget === 'bigquery' && previewMode === 'ddl' ? (
-                                    <div className="bg-gray-900 rounded-2xl p-6 h-[600px] overflow-auto">
-                                        <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">
-                                            {generateBigQueryDDL()}
+                                            {selectedTarget === 'looker' 
+                                                ? generateLookML() 
+                                                : selectedTarget === 'spanner' 
+                                                    ? generateSpannerDDL() 
+                                                    : generateBigQueryDDL()}
                                         </pre>
                                     </div>
                                 ) : (
@@ -2728,6 +2816,9 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                                             )}
                                                             {selectedTarget === 'spanner' && (
                                                                 <code>Node: {entity.name} ({entity.properties.length} properties)</code>
+                                                            )}
+                                                            {selectedTarget === 'looker' && (
+                                                                <code>view: {entity.name.toLowerCase().replace(/\s+/g, '_')}</code>
                                                             )}
                                                         </div>
                                                     </div>
@@ -2789,6 +2880,26 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                                     <div className="bg-gray-50 rounded-xl p-3">
                                                         <div className="text-gray-500 text-xs mb-1">Database</div>
                                                         <div className="font-mono text-gray-900">{dataset || '—'}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {selectedTarget === 'looker' && (
+                                            <div className="mt-6 pt-6 border-t border-gray-100">
+                                                <h4 className="text-sm font-semibold text-gray-700 mb-3">Looker Configuration</h4>
+                                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Source Project</div>
+                                                        <div className="font-mono text-gray-900">{project || '—'}</div>
+                                                    </div>
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Source Dataset</div>
+                                                        <div className="font-mono text-gray-900">{dataset || '—'}</div>
+                                                    </div>
+                                                    <div className="bg-gray-50 rounded-xl p-3">
+                                                        <div className="text-gray-500 text-xs mb-1">Looker Project</div>
+                                                        <div className="font-mono text-gray-900">{lookerProject || '—'}</div>
                                                     </div>
                                                 </div>
                                             </div>
