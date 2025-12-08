@@ -2264,6 +2264,7 @@ type DeployTarget = 'bigquery' | 'spanner' | 'looker' | null;
 
 const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = ({ model, onBack }) => {
     const [selectedTarget, setSelectedTarget] = useState<DeployTarget>(null);
+    const [previewMode, setPreviewMode] = useState<'resources' | 'ddl'>('resources');
     const [project, setProject] = useState('');
     const [dataset, setDataset] = useState('');
     const [instance, setInstance] = useState('');
@@ -2347,6 +2348,81 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
         lookml += `# include: "/*.view.lkml"\n`;
         
         return lookml;
+    };
+
+    const generateBigQueryDDL = () => {
+        let ddl = `-- BigQuery DDL for ${model.name}\n`;
+        ddl += `-- Generated: ${new Date().toISOString()}\n`;
+        ddl += `-- Project: ${project || 'project'}\n`;
+        ddl += `-- Dataset: ${dataset || 'dataset'}\n\n`;
+        
+        // Create dataset statement
+        ddl += `-- Create dataset if not exists\n`;
+        ddl += `CREATE SCHEMA IF NOT EXISTS \`${project || 'project'}.${dataset || 'dataset'}\`\n`;
+        ddl += `OPTIONS (\n`;
+        ddl += `  description = "${model.description || model.name} semantic model"\n`;
+        ddl += `);\n\n`;
+        
+        model.entities.forEach(entity => {
+            const tableName = entity.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+            const fullTableName = `\`${project || 'project'}.${dataset || 'dataset'}.${tableName}\``;
+            
+            ddl += `-- ${entity.type || 'ENTITY'}: ${entity.name}\n`;
+            if (entity.description) {
+                ddl += `-- ${entity.description}\n`;
+            }
+            ddl += `CREATE OR REPLACE TABLE ${fullTableName} (\n`;
+            
+            entity.properties.forEach((prop, idx) => {
+                const columnName = prop.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                const bqType = mapDataTypeToBQ(prop.dataType);
+                const isLast = idx === entity.properties.length - 1;
+                
+                ddl += `  ${columnName} ${bqType}`;
+                if (prop.description) {
+                    ddl += ` OPTIONS (description = "${prop.description.replace(/"/g, '\\"').substring(0, 200)}")`;
+                }
+                ddl += isLast ? '\n' : ',\n';
+            });
+            
+            ddl += `)\n`;
+            ddl += `OPTIONS (\n`;
+            ddl += `  description = "${(entity.description || entity.name).replace(/"/g, '\\"').substring(0, 200)}"\n`;
+            ddl += `);\n\n`;
+        });
+        
+        // Generate relationships as comments (BQ doesn't have FK constraints in the traditional sense)
+        if (model.relationships.length > 0) {
+            ddl += `-- Relationships (for documentation purposes)\n`;
+            model.relationships.forEach(rel => {
+                const source = model.entities.find(e => e.id === rel.sourceEntityId);
+                const target = model.entities.find(e => e.id === rel.targetEntityId);
+                const sourceProp = source?.properties.find(p => p.id === rel.sourcePropertyId);
+                const targetProp = target?.properties.find(p => p.id === rel.targetPropertyId);
+                ddl += `-- ${source?.name}.${sourceProp?.name || 'id'} -> ${target?.name}.${targetProp?.name || 'id'} (${rel.type})\n`;
+            });
+        }
+        
+        return ddl;
+    };
+    
+    const mapDataTypeToBQ = (dataType: string): string => {
+        const typeMap: Record<string, string> = {
+            'STRING': 'STRING',
+            'INTEGER': 'INT64',
+            'FLOAT': 'FLOAT64',
+            'BOOLEAN': 'BOOL',
+            'TIMESTAMP': 'TIMESTAMP',
+            'DATE': 'DATE',
+            'DATETIME': 'DATETIME',
+            'TIME': 'TIME',
+            'BYTES': 'BYTES',
+            'NUMERIC': 'NUMERIC',
+            'BIGNUMERIC': 'BIGNUMERIC',
+            'GEOGRAPHY': 'GEOGRAPHY',
+            'JSON': 'JSON',
+        };
+        return typeMap[dataType?.toUpperCase()] || 'STRING';
     };
 
     if (deployed) {
@@ -2591,14 +2667,47 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
 
                             {/* Right: Preview */}
                             <div className="flex-1">
-                                <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4">
-                                    {selectedTarget === 'looker' ? 'LookML Preview' : 'Deployment Preview'}
-                                </h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                                        {selectedTarget === 'looker' ? 'LookML Preview' : 'Deployment Preview'}
+                                    </h3>
+                                    
+                                    {selectedTarget === 'bigquery' && (
+                                        <div className="flex bg-gray-100 rounded-lg p-1">
+                                            <button
+                                                onClick={() => setPreviewMode('resources')}
+                                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                                    previewMode === 'resources' 
+                                                        ? 'bg-white text-gray-900 shadow-sm' 
+                                                        : 'text-gray-600 hover:text-gray-900'
+                                                }`}
+                                            >
+                                                Resources
+                                            </button>
+                                            <button
+                                                onClick={() => setPreviewMode('ddl')}
+                                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                                    previewMode === 'ddl' 
+                                                        ? 'bg-white text-gray-900 shadow-sm' 
+                                                        : 'text-gray-600 hover:text-gray-900'
+                                                }`}
+                                            >
+                                                DDL Code
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                                 
                                 {selectedTarget === 'looker' ? (
                                     <div className="bg-gray-900 rounded-2xl p-6 h-[600px] overflow-auto">
                                         <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">
                                             {generateLookML()}
+                                        </pre>
+                                    </div>
+                                ) : selectedTarget === 'bigquery' && previewMode === 'ddl' ? (
+                                    <div className="bg-gray-900 rounded-2xl p-6 h-[600px] overflow-auto">
+                                        <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">
+                                            {generateBigQueryDDL()}
                                         </pre>
                                     </div>
                                 ) : (
