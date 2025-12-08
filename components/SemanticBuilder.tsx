@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText } from 'lucide-react';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag } from 'lucide-react';
 import { suggestEntitiesFromDescription } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
 import { AspectSelector } from './AspectSelector';
@@ -475,7 +475,7 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
     entity, model, setModel, onClose, availableColumns, currentEntityTableName 
 }) => {
     const [expandedPropertyId, setExpandedPropertyId] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'config' | 'properties' | 'dashboard'>('config');
+    const [activeTab, setActiveTab] = useState<'config' | 'dashboard'>('dashboard');
 
     const updateEntity = (updates: Partial<Entity>) => {
         setModel(prev => ({
@@ -536,16 +536,6 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                         }`}
                     >
                         Configuration
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('properties')}
-                        className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                            activeTab === 'properties' 
-                                ? 'border-blue-600 text-blue-600' 
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
-                        }`}
-                    >
-                        Properties ({entity.properties.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('dashboard')}
@@ -626,108 +616,145 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                         </div>
                     )}
 
-                    {activeTab === 'properties' && (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-base font-bold text-gray-800">Properties</h3>
-                                <button className="text-blue-600 text-sm font-medium hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
-                                    <Plus size={14} /> Add Property
-                                </button>
-                            </div>
-                            {entity.properties.map((prop) => {
-                                const isExpanded = expandedPropertyId === prop.id;
-                                return (
-                                    <div key={prop.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                        <div 
-                                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                                            onClick={() => setExpandedPropertyId(isExpanded ? null : prop.id)}
-                                        >
-                                            <div className="flex justify-between items-center">
-                                                <div className="flex items-center gap-3">
-                                                    <ChevronRight 
-                                                        size={16} 
-                                                        className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                                                    />
-                                                    <div>
-                                                        <div className="font-medium text-gray-800">{prop.name}</div>
-                                                        <div className="text-xs text-gray-500 mt-0.5">
-                                                            {prop.binding || 'Not bound'} | {prop.dataType}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {(prop.glossaryTerms?.length || 0) > 0 && (
-                                                        <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">
-                                                            {prop.glossaryTerms?.length} terms
-                                                        </span>
-                                                    )}
-                                                    {(prop.aspects?.length || 0) > 0 && (
-                                                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                                                            {prop.aspects?.length} aspects
-                                                        </span>
-                                                    )}
-                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-mono">{prop.dataType}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {isExpanded && (
-                                            <div className="px-6 pb-6 pt-2 border-t border-gray-100 bg-gray-50/50 space-y-6">
-                                                <WikiEditor
-                                                    content={prop.overview || prop.description}
-                                                    onChange={(content) => updateProperty(prop.id, { overview: content, description: content })}
-                                                    placeholder="Add a detailed description of this property..."
-                                                    history={prop.descriptionHistory || []}
-                                                    onHistoryUpdate={(history) => updateProperty(prop.id, { descriptionHistory: history })}
-                                                    label="Property Description"
-                                                    minHeight="100px"
-                                                />
-
-                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                                    <AspectSelector
-                                                        aspects={prop.aspects || []}
-                                                        onChange={(aspects) => updateProperty(prop.id, { aspects })}
-                                                        label="Property Aspects"
-                                                    />
-                                                    <GlossarySelector
-                                                        selectedTerms={prop.glossaryTerms || []}
-                                                        onChange={(glossaryTerms) => updateProperty(prop.id, { glossaryTerms })}
-                                                        label="Glossary Terms"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Column Binding</label>
-                                                    <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-200">
-                                                        <Database size={16} className="text-blue-500" />
-                                                        <select
-                                                            value={prop.binding || ''}
-                                                            onChange={(e) => updateProperty(prop.id, { binding: e.target.value })}
-                                                            className="flex-1 text-sm border-0 outline-none bg-transparent"
-                                                        >
-                                                            <option value="">Select column...</option>
-                                                            {availableColumns.map(col => (
-                                                                <option key={col.name} value={`${currentEntityTableName}.${col.name}`}>
-                                                                    {col.name} ({col.type})
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            </div>
+                    {activeTab === 'dashboard' && (
+                        <div className="grid grid-cols-12 gap-6">
+                            {/* Left: Explainability Panel */}
+                            <div className="col-span-12 lg:col-span-4 space-y-4">
+                                {/* Entity Overview */}
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                                    <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <FileText size={16} className="text-blue-500" />
+                                        About This Entity
+                                    </h4>
+                                    <div className="text-sm text-gray-600 leading-relaxed">
+                                        {entity.overview || entity.description || (
+                                            <span className="text-gray-400 italic">No description available</span>
                                         )}
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                                </div>
 
-                    {activeTab === 'dashboard' && (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <h3 className="text-base font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                <BarChart3 className="text-blue-500"/> Instance Explorer
-                            </h3>
-                            <EntityDashboard entity={entity} isFullPage />
+                                {/* Glossary Terms */}
+                                {(entity.glossaryTerms?.length || 0) > 0 && (
+                                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                                        <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                            <BookOpen size={16} className="text-purple-500" />
+                                            Business Terms
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {entity.glossaryTerms?.map(term => (
+                                                <span key={term.id} className="px-2.5 py-1 bg-purple-50 text-purple-700 text-xs rounded-full border border-purple-200">
+                                                    {term.term}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Entity Aspects */}
+                                {(entity.aspects?.length || 0) > 0 && (
+                                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                                        <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                            <Tag size={16} className="text-green-500" />
+                                            Data Aspects
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {entity.aspects?.map(aspect => (
+                                                <div key={aspect.id} className="flex items-start gap-2 text-xs">
+                                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded font-medium shrink-0">
+                                                        {aspect.type}
+                                                    </span>
+                                                    <span className="text-gray-600">{aspect.value}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Properties Summary */}
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                                    <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <Layers size={16} className="text-indigo-500" />
+                                        Properties ({entity.properties.length})
+                                    </h4>
+                                    <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                                        {entity.properties.map((prop) => {
+                                            const isExpanded = expandedPropertyId === prop.id;
+                                            return (
+                                                <div key={prop.id} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                                                    <div 
+                                                        className="flex items-start justify-between cursor-pointer group"
+                                                        onClick={() => setExpandedPropertyId(isExpanded ? null : prop.id)}
+                                                    >
+                                                        <div className="flex items-start gap-2">
+                                                            <ChevronRight 
+                                                                size={14} 
+                                                                className={`text-gray-400 mt-0.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                                            />
+                                                            <div>
+                                                                <div className="text-sm font-medium text-gray-800 group-hover:text-blue-600">
+                                                                    {prop.name}
+                                                                </div>
+                                                                <div className="text-xs text-gray-400 font-mono">
+                                                                    {prop.dataType}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            {(prop.glossaryTerms?.length || 0) > 0 && (
+                                                                <span className="w-2 h-2 bg-purple-400 rounded-full" title={`${prop.glossaryTerms?.length} glossary terms`}></span>
+                                                            )}
+                                                            {(prop.aspects?.length || 0) > 0 && (
+                                                                <span className="w-2 h-2 bg-green-400 rounded-full" title={`${prop.aspects?.length} aspects`}></span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {isExpanded && (
+                                                        <div className="mt-2 ml-6 space-y-2 text-xs">
+                                                            {(prop.overview || prop.description) && (
+                                                                <p className="text-gray-600">{prop.overview || prop.description}</p>
+                                                            )}
+                                                            {prop.binding && (
+                                                                <div className="text-gray-500">
+                                                                    <span className="text-gray-400">Bound to:</span> <span className="font-mono">{prop.binding}</span>
+                                                                </div>
+                                                            )}
+                                                            {(prop.glossaryTerms?.length || 0) > 0 && (
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {prop.glossaryTerms?.map(term => (
+                                                                        <span key={term.id} className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-[10px]">
+                                                                            {term.term}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            {(prop.aspects?.length || 0) > 0 && (
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {prop.aspects?.map(aspect => (
+                                                                        <span key={aspect.id} className="px-1.5 py-0.5 bg-green-50 text-green-600 rounded text-[10px]">
+                                                                            {aspect.type}: {aspect.value}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right: Dashboard Visualization */}
+                            <div className="col-span-12 lg:col-span-8">
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-full">
+                                    <h3 className="text-base font-bold text-gray-800 mb-6 flex items-center gap-2">
+                                        <BarChart3 className="text-blue-500"/> Instance Explorer
+                                    </h3>
+                                    <EntityDashboard entity={entity} isFullPage />
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
