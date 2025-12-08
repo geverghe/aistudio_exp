@@ -10,6 +10,12 @@ export enum EntityType {
   FACT = 'FACT'
 }
 
+export enum PropertyType {
+  DIMENSION = 'DIMENSION',
+  MEASURE = 'MEASURE',
+  OTHER = 'OTHER'
+}
+
 export interface AspectType {
   id: string;
   name: string;
@@ -46,6 +52,8 @@ export interface Property {
   glossaryTerms?: GlossaryTerm[];
   binding?: string;
   isComputed?: boolean;
+  propertyType?: PropertyType;
+  definition?: string;
 }
 
 export interface Entity {

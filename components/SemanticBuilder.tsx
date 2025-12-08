@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory } from '../types';
+import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory, PropertyType } from '../types';
 import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download } from 'lucide-react';
 import { suggestEntitiesFromDescription } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
@@ -1095,7 +1095,7 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
 
                                                         {isEditing && (
                                                             <div className="px-4 pb-4 pt-2 border-t border-gray-200 bg-white space-y-4">
-                                                                <div className="grid grid-cols-2 gap-4">
+                                                                <div className="grid grid-cols-3 gap-4">
                                                                     <div>
                                                                         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Property Name</label>
                                                                         <input
@@ -1122,6 +1122,18 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                                             <option value="STRUCT">STRUCT</option>
                                                                         </select>
                                                                     </div>
+                                                                    <div>
+                                                                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Property Type</label>
+                                                                        <select
+                                                                            value={prop.propertyType || PropertyType.OTHER}
+                                                                            onChange={(e) => updateProperty(prop.id, { propertyType: e.target.value as PropertyType })}
+                                                                            className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:border-blue-500 outline-none bg-white"
+                                                                        >
+                                                                            <option value={PropertyType.DIMENSION}>Dimension</option>
+                                                                            <option value={PropertyType.MEASURE}>Measure</option>
+                                                                            <option value={PropertyType.OTHER}>Other</option>
+                                                                        </select>
+                                                                    </div>
                                                                 </div>
 
                                                                 <div>
@@ -1139,6 +1151,11 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                                         ))}
                                                                     </select>
                                                                 </div>
+
+                                                                <PropertyDefinitionEditor
+                                                                    definition={prop.definition || ''}
+                                                                    onChange={(definition) => updateProperty(prop.id, { definition })}
+                                                                />
 
                                                                 <WikiEditor
                                                                     content={prop.overview || prop.description}
