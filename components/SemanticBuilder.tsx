@@ -2749,26 +2749,6 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                                     <option value="looker-staging.company.com">looker-staging.company.com (Staging)</option>
                                                 </select>
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">Source Project (BigQuery)</label>
-                                                <input
-                                                    type="text"
-                                                    value={project}
-                                                    onChange={(e) => setProject(e.target.value)}
-                                                    placeholder="my-gcp-project"
-                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">Source Dataset</label>
-                                                <input
-                                                    type="text"
-                                                    value={dataset}
-                                                    onChange={(e) => setDataset(e.target.value)}
-                                                    placeholder="source_dataset"
-                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                                />
-                                            </div>
                                             <div className="bg-purple-50 rounded-xl p-4 text-sm text-purple-800">
                                                 <div className="font-medium mb-1">LookML Generation</div>
                                                 <p className="text-purple-600 text-xs">
@@ -2785,7 +2765,7 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                                 isDeploying || 
                                                 (selectedTarget === 'bigquery' && (!project || !dataset)) ||
                                                 (selectedTarget === 'spanner' && (!project || !instance || !dataset)) ||
-                                                (selectedTarget === 'looker' && (!project || !dataset || !lookerProject || !instance))
+                                                (selectedTarget === 'looker' && (!lookerProject || !instance))
                                             }
                                             className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                         >
@@ -2962,14 +2942,6 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                                     <div className="bg-gray-50 rounded-xl p-3">
                                                         <div className="text-gray-500 text-xs mb-1">Looker Instance</div>
                                                         <div className="font-mono text-gray-900">{instance || '—'}</div>
-                                                    </div>
-                                                    <div className="bg-gray-50 rounded-xl p-3">
-                                                        <div className="text-gray-500 text-xs mb-1">Source Project</div>
-                                                        <div className="font-mono text-gray-900">{project || '—'}</div>
-                                                    </div>
-                                                    <div className="bg-gray-50 rounded-xl p-3">
-                                                        <div className="text-gray-500 text-xs mb-1">Source Dataset</div>
-                                                        <div className="font-mono text-gray-900">{dataset || '—'}</div>
                                                     </div>
                                                 </div>
                                             </div>
