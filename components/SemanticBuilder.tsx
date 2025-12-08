@@ -776,17 +776,62 @@ const FullPageEntityView: React.FC<FullPageEntityViewProps> = ({
                                                                     minHeight="80px"
                                                                 />
 
-                                                                <div className="grid grid-cols-2 gap-4">
-                                                                    <AspectSelector
-                                                                        aspects={prop.aspects || []}
-                                                                        onChange={(aspects) => updateProperty(prop.id, { aspects })}
-                                                                        label="Property Aspects"
-                                                                    />
-                                                                    <GlossarySelector
-                                                                        selectedTerms={prop.glossaryTerms || []}
-                                                                        onChange={(glossaryTerms) => updateProperty(prop.id, { glossaryTerms })}
-                                                                        label="Glossary Terms"
-                                                                    />
+                                                                {/* Collapsible Aspects Section */}
+                                                                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                                                    <div 
+                                                                        className="p-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between"
+                                                                        onClick={() => setExpandedPropertyId(expandedPropertyId === `aspects-${prop.id}` ? null : `aspects-${prop.id}`)}
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <ChevronRight 
+                                                                                size={14} 
+                                                                                className={`text-gray-400 transition-transform ${expandedPropertyId === `aspects-${prop.id}` ? 'rotate-90' : ''}`}
+                                                                            />
+                                                                            <Tag size={14} className="text-green-500" />
+                                                                            <span className="text-sm font-medium text-gray-700">Property Aspects</span>
+                                                                        </div>
+                                                                        <span className="text-xs text-gray-400">
+                                                                            {prop.aspects?.length || 0} aspect{(prop.aspects?.length || 0) !== 1 ? 's' : ''}
+                                                                        </span>
+                                                                    </div>
+                                                                    {expandedPropertyId === `aspects-${prop.id}` && (
+                                                                        <div className="p-3 border-t border-gray-200 bg-white">
+                                                                            <AspectSelector
+                                                                                aspects={prop.aspects || []}
+                                                                                onChange={(aspects) => updateProperty(prop.id, { aspects })}
+                                                                                label=""
+                                                                            />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Collapsible Glossary Terms Section */}
+                                                                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                                                    <div 
+                                                                        className="p-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between"
+                                                                        onClick={() => setExpandedPropertyId(expandedPropertyId === `glossary-${prop.id}` ? null : `glossary-${prop.id}`)}
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <ChevronRight 
+                                                                                size={14} 
+                                                                                className={`text-gray-400 transition-transform ${expandedPropertyId === `glossary-${prop.id}` ? 'rotate-90' : ''}`}
+                                                                            />
+                                                                            <BookOpen size={14} className="text-purple-500" />
+                                                                            <span className="text-sm font-medium text-gray-700">Glossary Terms</span>
+                                                                        </div>
+                                                                        <span className="text-xs text-gray-400">
+                                                                            {prop.glossaryTerms?.length || 0} term{(prop.glossaryTerms?.length || 0) !== 1 ? 's' : ''}
+                                                                        </span>
+                                                                    </div>
+                                                                    {expandedPropertyId === `glossary-${prop.id}` && (
+                                                                        <div className="p-3 border-t border-gray-200 bg-white">
+                                                                            <GlossarySelector
+                                                                                selectedTerms={prop.glossaryTerms || []}
+                                                                                onChange={(glossaryTerms) => updateProperty(prop.id, { glossaryTerms })}
+                                                                                label=""
+                                                                            />
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         )}
