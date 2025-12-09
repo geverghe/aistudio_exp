@@ -730,6 +730,13 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
                                     relationships: prev.relationships.map(r => r.id === updated.id ? updated : r)
                                 }));
                             }}
+                            onDelete={() => {
+                                setModel(prev => ({
+                                    ...prev,
+                                    relationships: prev.relationships.filter(r => r.id !== selectedRelationship.id)
+                                }));
+                                setSelection(null);
+                            }}
                         />
                     </div>
                  )}
@@ -2179,62 +2186,127 @@ const InfoIcon = ({size}: {size: number}) => (
 const RelationshipViewer: React.FC<{ 
     relationship: Relationship, 
     model: SemanticModel, 
-    onChange: (r: Relationship) => void 
-}> = ({ relationship, model, onChange }) => {
+    onChange: (r: Relationship) => void,
+    onDelete?: () => void
+}> = ({ relationship, model, onChange, onDelete }) => {
     const sourceEntity = model.entities.find(e => e.id === relationship.sourceEntityId);
     const targetEntity = model.entities.find(e => e.id === relationship.targetEntityId);
+    const sourceProp = sourceEntity?.properties.find(p => p.id === relationship.sourcePropertyId);
+    const targetProp = targetEntity?.properties.find(p => p.id === relationship.targetPropertyId);
     
     return (
         <div>
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100 flex items-center justify-between">
+            {/* Visual Preview */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100 flex items-center justify-between">
                 <div className="text-center flex-1">
                     <div className="text-[10px] text-blue-600 font-semibold uppercase mb-1">Source</div>
                     <div className="font-medium text-gray-900 text-sm">{sourceEntity?.name}</div>
+                    <div className="text-xs text-gray-500">{sourceProp?.name || 'No property'}</div>
                 </div>
-                <div className="mx-2 text-blue-300"><ArrowRight size={16}/></div>
+                <div className="mx-2 text-blue-400"><ArrowRight size={20}/></div>
                 <div className="text-center flex-1">
-                    <div className="text-[10px] text-blue-600 font-semibold uppercase mb-1">Target</div>
+                    <div className="text-[10px] text-purple-600 font-semibold uppercase mb-1">Target</div>
                     <div className="font-medium text-gray-900 text-sm">{targetEntity?.name}</div>
+                    <div className="text-xs text-gray-500">{targetProp?.name || 'No property'}</div>
                 </div>
             </div>
 
-            <div className="mb-6">
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Relationship Label</label>
-                <input
-                    type="text"
-                    value={relationship.label || ''}
-                    onChange={(e) => onChange({...relationship, label: e.target.value})}
-                    placeholder="e.g. Has Inventory"
-                    className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
+            {/* Title and Label */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Title</label>
+                    <input
+                        type="text"
+                        value={relationship.title || ''}
+                        onChange={(e) => onChange({...relationship, title: e.target.value})}
+                        placeholder="e.g. Product SKU Link"
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Label</label>
+                    <input
+                        type="text"
+                        value={relationship.label || ''}
+                        onChange={(e) => onChange({...relationship, label: e.target.value})}
+                        placeholder="e.g. has_product"
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                </div>
             </div>
 
+            {/* Source and Target Property Selection */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Source Property</label>
+                    <select 
+                        value={relationship.sourcePropertyId || ''}
+                        onChange={(e) => onChange({...relationship, sourcePropertyId: e.target.value})}
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-blue-500 focus:border-blue-500"
+                    >
+                        <option value="">Select Property...</option>
+                        {sourceEntity?.properties.map(p => (
+                            <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Target Property</label>
+                    <select 
+                        value={relationship.targetPropertyId || ''}
+                        onChange={(e) => onChange({...relationship, targetPropertyId: e.target.value})}
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-blue-500 focus:border-blue-500"
+                    >
+                        <option value="">Select Property...</option>
+                        {targetEntity?.properties.map(p => (
+                            <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* Cardinality */}
             <div className="mb-6">
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cardinality</label>
-                <select 
-                    value={relationship.type}
-                    onChange={(e) => onChange({...relationship, type: e.target.value as any})}
-                    className="w-full p-2 border border-gray-300 rounded text-sm bg-white focus:ring-blue-500 focus:border-blue-500"
-                >
-                    <option value="ONE_TO_ONE">One to One (1:1)</option>
-                    <option value="ONE_TO_MANY">One to Many (1:N)</option>
-                    <option value="MANY_TO_MANY">Many to Many (N:N)</option>
-                </select>
+                <div className="grid grid-cols-3 gap-2">
+                    {['ONE_TO_ONE', 'ONE_TO_MANY', 'MANY_TO_MANY'].map(opt => (
+                        <button
+                            key={opt}
+                            onClick={() => onChange({...relationship, type: opt as any})}
+                            className={`text-xs py-2.5 px-2 rounded-lg border transition-colors ${relationship.type === opt ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            {opt === 'ONE_TO_ONE' && '1:1 (One to One)'}
+                            {opt === 'ONE_TO_MANY' && '1:N (One to Many)'}
+                            {opt === 'MANY_TO_MANY' && 'N:N (Many to Many)'}
+                        </button>
+                    ))}
+                </div>
             </div>
 
+            {/* Description */}
             <div className="mb-6">
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Description</label>
                 <textarea 
                     value={relationship.description}
                     onChange={(e) => onChange({...relationship, description: e.target.value})}
                     rows={3}
-                    className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Describe this relationship..."
+                    className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
                 />
             </div>
             
-            <div className="pt-4 border-t border-gray-100">
-                <button className="text-red-600 text-sm hover:underline">Delete Relationship</button>
-            </div>
+            {/* Delete Button */}
+            {onDelete && (
+                <div className="pt-4 border-t border-gray-100">
+                    <button 
+                        onClick={onDelete}
+                        className="text-red-600 text-sm hover:text-red-800 flex items-center gap-1.5 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                    >
+                        <Trash2 size={14} />
+                        Delete Relationship
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
