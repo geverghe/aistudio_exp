@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory, PropertyType } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download, Key } from 'lucide-react';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download, Key, Edit3 } from 'lucide-react';
 import { suggestEntitiesFromDescription } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
 import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
@@ -2189,13 +2189,32 @@ const RelationshipViewer: React.FC<{
     onChange: (r: Relationship) => void,
     onDelete?: () => void
 }> = ({ relationship, model, onChange, onDelete }) => {
+    const [isEditing, setIsEditing] = React.useState(false);
     const sourceEntity = model.entities.find(e => e.id === relationship.sourceEntityId);
     const targetEntity = model.entities.find(e => e.id === relationship.targetEntityId);
     const sourceProp = sourceEntity?.properties.find(p => p.id === relationship.sourcePropertyId);
     const targetProp = targetEntity?.properties.find(p => p.id === relationship.targetPropertyId);
+
+    const cardinalityLabel = (type: string) => {
+        if (type === 'ONE_TO_ONE') return '1:1 (One to One)';
+        if (type === 'ONE_TO_MANY') return '1:N (One to Many)';
+        if (type === 'MANY_TO_MANY') return 'N:N (Many to Many)';
+        return type;
+    };
     
     return (
         <div>
+            {/* Header with Edit Button */}
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-700">Relationship Details</h3>
+                <button
+                    onClick={() => setIsEditing(!isEditing)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${isEditing ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                    {isEditing ? <><Check size={14} /> Done</> : <><Edit3 size={14} /> Edit</>}
+                </button>
+            </div>
+
             {/* Visual Preview */}
             <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100 flex items-center justify-between">
                 <div className="text-center flex-1">
@@ -2215,23 +2234,39 @@ const RelationshipViewer: React.FC<{
             <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Title</label>
-                    <input
-                        type="text"
-                        value={relationship.title || ''}
-                        onChange={(e) => onChange({...relationship, title: e.target.value})}
-                        placeholder="e.g. Product SKU Link"
-                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    />
+                    {isEditing ? (
+                        <input
+                            type="text"
+                            value={relationship.title || ''}
+                            onChange={(e) => onChange({...relationship, title: e.target.value})}
+                            placeholder="e.g. Product SKU Link"
+                            className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        />
+                    ) : (
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-800 min-h-[38px]">
+                            {relationship.title || <span className="text-gray-400 italic">Not set</span>}
+                        </div>
+                    )}
                 </div>
                 <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Label</label>
-                    <input
-                        type="text"
-                        value={relationship.label || ''}
-                        onChange={(e) => onChange({...relationship, label: e.target.value})}
-                        placeholder="e.g. has_product"
-                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    />
+                    {isEditing ? (
+                        <input
+                            type="text"
+                            value={relationship.label || ''}
+                            onChange={(e) => onChange({...relationship, label: e.target.value})}
+                            placeholder="e.g. has_product"
+                            className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        />
+                    ) : (
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm min-h-[38px]">
+                            {relationship.label ? (
+                                <code className="text-xs bg-gray-200 px-1.5 py-0.5 rounded text-gray-700">{relationship.label}</code>
+                            ) : (
+                                <span className="text-gray-400 italic">Not set</span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -2239,64 +2274,86 @@ const RelationshipViewer: React.FC<{
             <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Source Property</label>
-                    <select 
-                        value={relationship.sourcePropertyId || ''}
-                        onChange={(e) => onChange({...relationship, sourcePropertyId: e.target.value})}
-                        className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-blue-500 focus:border-blue-500"
-                    >
-                        <option value="">Select Property...</option>
-                        {sourceEntity?.properties.map(p => (
-                            <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
-                        ))}
-                    </select>
+                    {isEditing ? (
+                        <select 
+                            value={relationship.sourcePropertyId || ''}
+                            onChange={(e) => onChange({...relationship, sourcePropertyId: e.target.value})}
+                            className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="">Select Property...</option>
+                            {sourceEntity?.properties.map(p => (
+                                <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-800 min-h-[38px]">
+                            {sourceProp ? `${sourceProp.name} (${sourceProp.dataType})` : <span className="text-gray-400 italic">Not set</span>}
+                        </div>
+                    )}
                 </div>
                 <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Target Property</label>
-                    <select 
-                        value={relationship.targetPropertyId || ''}
-                        onChange={(e) => onChange({...relationship, targetPropertyId: e.target.value})}
-                        className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-blue-500 focus:border-blue-500"
-                    >
-                        <option value="">Select Property...</option>
-                        {targetEntity?.properties.map(p => (
-                            <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
-                        ))}
-                    </select>
+                    {isEditing ? (
+                        <select 
+                            value={relationship.targetPropertyId || ''}
+                            onChange={(e) => onChange({...relationship, targetPropertyId: e.target.value})}
+                            className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="">Select Property...</option>
+                            {targetEntity?.properties.map(p => (
+                                <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-800 min-h-[38px]">
+                            {targetProp ? `${targetProp.name} (${targetProp.dataType})` : <span className="text-gray-400 italic">Not set</span>}
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Cardinality */}
             <div className="mb-6">
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cardinality</label>
-                <div className="grid grid-cols-3 gap-2">
-                    {['ONE_TO_ONE', 'ONE_TO_MANY', 'MANY_TO_MANY'].map(opt => (
-                        <button
-                            key={opt}
-                            onClick={() => onChange({...relationship, type: opt as any})}
-                            className={`text-xs py-2.5 px-2 rounded-lg border transition-colors ${relationship.type === opt ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-                        >
-                            {opt === 'ONE_TO_ONE' && '1:1 (One to One)'}
-                            {opt === 'ONE_TO_MANY' && '1:N (One to Many)'}
-                            {opt === 'MANY_TO_MANY' && 'N:N (Many to Many)'}
-                        </button>
-                    ))}
-                </div>
+                {isEditing ? (
+                    <div className="grid grid-cols-3 gap-2">
+                        {['ONE_TO_ONE', 'ONE_TO_MANY', 'MANY_TO_MANY'].map(opt => (
+                            <button
+                                key={opt}
+                                onClick={() => onChange({...relationship, type: opt as any})}
+                                className={`text-xs py-2.5 px-2 rounded-lg border transition-colors ${relationship.type === opt ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                            >
+                                {cardinalityLabel(opt)}
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-800 min-h-[38px]">
+                        {cardinalityLabel(relationship.type)}
+                    </div>
+                )}
             </div>
 
             {/* Description */}
             <div className="mb-6">
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Description</label>
-                <textarea 
-                    value={relationship.description}
-                    onChange={(e) => onChange({...relationship, description: e.target.value})}
-                    rows={3}
-                    placeholder="Describe this relationship..."
-                    className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
-                />
+                {isEditing ? (
+                    <textarea 
+                        value={relationship.description}
+                        onChange={(e) => onChange({...relationship, description: e.target.value})}
+                        rows={3}
+                        placeholder="Describe this relationship..."
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
+                    />
+                ) : (
+                    <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-800 min-h-[72px]">
+                        {relationship.description || <span className="text-gray-400 italic">No description</span>}
+                    </div>
+                )}
             </div>
             
-            {/* Delete Button */}
-            {onDelete && (
+            {/* Delete Button - only show in edit mode */}
+            {isEditing && onDelete && (
                 <div className="pt-4 border-t border-gray-100">
                     <button 
                         onClick={onDelete}
