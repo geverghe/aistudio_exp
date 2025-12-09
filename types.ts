@@ -87,7 +87,8 @@ export interface Relationship {
   targetPropertyId?: string;
   type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY';
   description: string;
-  label?: string; // Display title for the link
+  title?: string;
+  label?: string;
 }
 
 export interface SemanticModelGraph {

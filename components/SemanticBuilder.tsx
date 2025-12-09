@@ -180,7 +180,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
       setViewMode('GRAPH');
   };
 
-  const handleCreateLink = (sourceEntityId: string, sourcePropId: string, targetEntityId: string, targetPropId: string, type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY') => {
+  const handleCreateLink = (sourceEntityId: string, sourcePropId: string, targetEntityId: string, targetPropId: string, type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY', title: string, label: string) => {
       const newRel: Relationship = {
           id: `rel_${Date.now()}`,
           sourceEntityId: sourceEntityId,
@@ -189,7 +189,8 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
           targetPropertyId: targetPropId,
           type: type,
           description: 'User defined relationship',
-          label: 'New Relationship'
+          title: title || undefined,
+          label: label || undefined
       };
 
       setModel(prev => ({ ...prev, relationships: [...prev.relationships, newRel] }));
@@ -1981,6 +1982,12 @@ const EntityConfigView: React.FC<any> = ({
                             
                             return (
                                 <div key={rel.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors">
+                                    {(rel.title || rel.label) && (
+                                        <div className="flex items-center gap-2 mb-2">
+                                            {rel.title && <span className="text-sm font-medium text-gray-800">{rel.title}</span>}
+                                            {rel.label && <span className="text-xs text-gray-500 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{rel.label}</span>}
+                                        </div>
+                                    )}
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2 text-sm">
                                             {isSource ? (
@@ -3471,13 +3478,15 @@ const CreateLinkModal: React.FC<{
     currentEntity: Entity,
     model: SemanticModel,
     onClose: () => void,
-    onCreate: (sourceEntityId: string, sourcePropId: string, targetEntityId: string, targetPropId: string, type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY') => void
+    onCreate: (sourceEntityId: string, sourcePropId: string, targetEntityId: string, targetPropId: string, type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY', title: string, label: string) => void
 }> = ({ currentEntity, model, onClose, onCreate }) => {
     const [direction, setDirection] = useState<'outgoing' | 'incoming'>('outgoing');
     const [sourcePropId, setSourcePropId] = useState('');
     const [otherEntityId, setOtherEntityId] = useState('');
     const [otherPropId, setOtherPropId] = useState('');
     const [relType, setRelType] = useState<'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY'>('ONE_TO_MANY');
+    const [title, setTitle] = useState('');
+    const [label, setLabel] = useState('');
 
     const otherEntity = model.entities.find(e => e.id === otherEntityId);
     const availableOtherEntities = model.entities.filter(e => e.id !== currentEntity.id);
@@ -3598,6 +3607,30 @@ const CreateLinkModal: React.FC<{
                         </div>
                     </div>
 
+                    {/* Title and Label */}
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={e => setTitle(e.target.value)}
+                                placeholder="e.g., Product SKU Link"
+                                className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                            <input
+                                type="text"
+                                value={label}
+                                onChange={e => setLabel(e.target.value)}
+                                placeholder="e.g., has_product"
+                                className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2"
+                            />
+                        </div>
+                    </div>
+
                     {/* Cardinality */}
                     <div className="mt-6">
                         <label className="block text-xs font-semibold text-gray-600 uppercase mb-2">Cardinality</label>
@@ -3620,7 +3653,7 @@ const CreateLinkModal: React.FC<{
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
                     <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
                     <button 
-                        onClick={() => onCreate(sourceEntityId, finalSourcePropId, targetEntityId, finalTargetPropId, relType)}
+                        onClick={() => onCreate(sourceEntityId, finalSourcePropId, targetEntityId, finalTargetPropId, relType, title, label)}
                         disabled={!sourcePropId || !otherEntityId || !otherPropId}
                         className="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors"
                     >
