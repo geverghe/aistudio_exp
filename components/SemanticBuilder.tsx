@@ -1729,65 +1729,56 @@ const EntityConfigView: React.FC<any> = ({
         }));
     };
 
+    const [isDefinitionExpanded, setIsDefinitionExpanded] = useState(true);
+
     return (
         <div className="p-6">
+            {/* Collapsible Definition Section */}
             <div className="mb-8">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Definition</label>
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-4">
-                    <div>
-                        <label className="block text-xs text-gray-400 mb-1">Entity Name</label>
-                        <input 
-                            type="text" 
-                            value={entity.name}
-                            onChange={(e) => updateEntity({ name: e.target.value })}
-                            className="w-full text-sm font-medium text-gray-900 border-b border-gray-200 focus:border-blue-500 outline-none pb-1" 
-                        />
-                    </div>
-                    <WikiEditor
-                        content={entity.overview || entity.description}
-                        onChange={(content) => updateEntity({ overview: content, description: content })}
-                        placeholder="Add a detailed description of this entity..."
-                        history={entity.descriptionHistory || []}
-                        onHistoryUpdate={(history) => updateEntity({ descriptionHistory: history })}
-                        label="Overview"
-                        minHeight="100px"
+                <button
+                    onClick={() => setIsDefinitionExpanded(!isDefinitionExpanded)}
+                    className="w-full flex items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 hover:text-gray-700 transition-colors"
+                >
+                    <span>Definition</span>
+                    <ChevronRight 
+                        size={16} 
+                        className={`transition-transform ${isDefinitionExpanded ? 'rotate-90' : ''}`}
                     />
-                </div>
-            </div>
-
-            <div className="mb-8">
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-6">
-                    <AspectSelector
-                        aspects={entity.aspects || []}
-                        onChange={(aspects) => updateEntity({ aspects })}
-                        label="Entity Aspects"
-                    />
-                    <GlossarySelector
-                        selectedTerms={entity.glossaryTerms || []}
-                        onChange={(glossaryTerms) => updateEntity({ glossaryTerms })}
-                        label="Glossary Terms"
-                    />
-                </div>
-            </div>
-
-            {/* Binding Info */}
-            <div className="mb-8">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Property Binding</label>
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 text-gray-700">
-                            <Database size={16} className="text-blue-600"/>
-                            <span className="text-sm font-medium">BigQuery Table</span>
+                </button>
+                {isDefinitionExpanded && (
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-4">
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">Entity Name</label>
+                            <input 
+                                type="text" 
+                                value={entity.name}
+                                onChange={(e) => updateEntity({ name: e.target.value })}
+                                className="w-full text-sm font-medium text-gray-900 border-b border-gray-200 focus:border-blue-500 outline-none pb-1" 
+                            />
                         </div>
-                        <span className="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-700 font-medium border border-green-200">Active</span>
+                        <WikiEditor
+                            content={entity.overview || entity.description}
+                            onChange={(content) => updateEntity({ overview: content, description: content })}
+                            placeholder="Add a detailed description of this entity..."
+                            history={entity.descriptionHistory || []}
+                            onHistoryUpdate={(history) => updateEntity({ descriptionHistory: history })}
+                            label="Overview"
+                            minHeight="100px"
+                        />
+                        <div className="border-t border-gray-100 pt-4 space-y-4">
+                            <AspectSelector
+                                aspects={entity.aspects || []}
+                                onChange={(aspects) => updateEntity({ aspects })}
+                                label="Entity Aspects"
+                            />
+                            <GlossarySelector
+                                selectedTerms={entity.glossaryTerms || []}
+                                onChange={(glossaryTerms) => updateEntity({ glossaryTerms })}
+                                label="Glossary Terms"
+                            />
+                        </div>
                     </div>
-                    <div className="text-sm font-mono bg-gray-50 border border-gray-200 px-3 py-2 rounded text-gray-600 break-all mb-2">
-                        {currentEntityTableName || 'No binding detected'}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                        Project: <span className="text-gray-600">vergheseg-sandbox</span>
-                    </div>
-                </div>
+                )}
             </div>
 
             {/* Properties List */}
@@ -3823,7 +3814,7 @@ const ImportModelModal: React.FC<{
                                             {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
                                         </p>
                                         <div className="text-sm text-gray-500 space-y-1">
-                                            {Array.from(selectedFiles).map((file, idx) => (
+                                            {Array.from(selectedFiles).map((file: File, idx: number) => (
                                                 <div key={idx} className="flex items-center justify-center gap-2">
                                                     <FileText size={14} />
                                                     <span>{file.name}</span>
