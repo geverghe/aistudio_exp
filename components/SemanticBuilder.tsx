@@ -180,17 +180,15 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
       setViewMode('GRAPH');
   };
 
-  const handleCreateLink = (targetEntityId: string, targetPropId: string, type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY') => {
-      if (!selectedEntity || !linkingSourcePropId) return;
-
+  const handleCreateLink = (sourceEntityId: string, sourcePropId: string, targetEntityId: string, targetPropId: string, type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY') => {
       const newRel: Relationship = {
           id: `rel_${Date.now()}`,
-          sourceEntityId: selectedEntity.id,
-          sourcePropertyId: linkingSourcePropId,
+          sourceEntityId: sourceEntityId,
+          sourcePropertyId: sourcePropId,
           targetEntityId: targetEntityId,
           targetPropertyId: targetPropId,
           type: type,
-          description: 'User defined link',
+          description: 'User defined relationship',
           label: 'New Relationship'
       };
 
@@ -741,8 +739,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
       {/* Create Link Modal */}
       {isLinkModalOpen && selectedEntity && (
           <CreateLinkModal 
-             sourceEntity={selectedEntity}
-             sourcePropId={linkingSourcePropId!}
+             currentEntity={selectedEntity}
              model={model}
              onClose={() => setIsLinkModalOpen(false)}
              onCreate={handleCreateLink}
@@ -1962,7 +1959,7 @@ const EntityConfigView: React.FC<any> = ({
             <div className="mt-8">
                 <div className="flex items-center justify-between mb-3">
                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                        Relationships ({model.relationships.filter(r => r.fromEntityId === entity.id || r.toEntityId === entity.id).length})
+                        Relationships ({model.relationships.filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id).length})
                     </h4>
                     <button 
                         onClick={() => onLinkClick(null)}
@@ -1974,13 +1971,13 @@ const EntityConfigView: React.FC<any> = ({
                 </div>
                 <div className="space-y-2">
                     {model.relationships
-                        .filter(r => r.fromEntityId === entity.id || r.toEntityId === entity.id)
+                        .filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id)
                         .map(rel => {
-                            const isSource = rel.fromEntityId === entity.id;
-                            const otherEntityId = isSource ? rel.toEntityId : rel.fromEntityId;
+                            const isSource = rel.sourceEntityId === entity.id;
+                            const otherEntityId = isSource ? rel.targetEntityId : rel.sourceEntityId;
                             const otherEntity = model.entities.find(e => e.id === otherEntityId);
-                            const fromProp = entity.properties.find(p => p.id === rel.fromPropertyId);
-                            const toProp = otherEntity?.properties.find(p => p.id === rel.toPropertyId);
+                            const sourceProp = entity.properties.find(p => p.id === rel.sourcePropertyId);
+                            const targetProp = otherEntity?.properties.find(p => p.id === rel.targetPropertyId);
                             
                             return (
                                 <div key={rel.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors">
@@ -1988,25 +1985,25 @@ const EntityConfigView: React.FC<any> = ({
                                         <div className="flex items-center gap-2 text-sm">
                                             {isSource ? (
                                                 <>
-                                                    <span className="font-medium text-gray-800">{fromProp?.name || 'Unknown'}</span>
+                                                    <span className="font-medium text-gray-800">{sourceProp?.name || 'Unknown'}</span>
                                                     <ArrowRight size={14} className="text-gray-400" />
                                                     <span className="text-blue-600">{otherEntity?.name || 'Unknown'}</span>
                                                     <span className="text-gray-400">.</span>
-                                                    <span className="text-gray-600">{toProp?.name || 'Unknown'}</span>
+                                                    <span className="text-gray-600">{targetProp?.name || 'Unknown'}</span>
                                                 </>
                                             ) : (
                                                 <>
                                                     <span className="text-blue-600">{otherEntity?.name || 'Unknown'}</span>
                                                     <span className="text-gray-400">.</span>
-                                                    <span className="text-gray-600">{fromProp?.name || 'Unknown'}</span>
+                                                    <span className="text-gray-600">{sourceProp?.name || 'Unknown'}</span>
                                                     <ArrowRight size={14} className="text-gray-400" />
-                                                    <span className="font-medium text-gray-800">{toProp?.name || 'Unknown'}</span>
+                                                    <span className="font-medium text-gray-800">{targetProp?.name || 'Unknown'}</span>
                                                 </>
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">
-                                                {rel.cardinality || 'ONE_TO_MANY'}
+                                                {rel.type || 'ONE_TO_MANY'}
                                             </span>
                                             <button
                                                 onClick={() => {
@@ -2024,7 +2021,7 @@ const EntityConfigView: React.FC<any> = ({
                                 </div>
                             );
                         })}
-                    {model.relationships.filter(r => r.fromEntityId === entity.id || r.toEntityId === entity.id).length === 0 && (
+                    {model.relationships.filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id).length === 0 && (
                         <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-200">
                             No relationships defined for this entity
                         </div>
@@ -3471,25 +3468,25 @@ const ColumnSearchModal: React.FC<{
 };
 
 const CreateLinkModal: React.FC<{
-    sourceEntity: Entity,
-    sourcePropId: string,
+    currentEntity: Entity,
     model: SemanticModel,
     onClose: () => void,
-    onCreate: (targetEntityId: string, targetPropId: string, type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY') => void
-}> = ({ sourceEntity, sourcePropId, model, onClose, onCreate }) => {
+    onCreate: (sourceEntityId: string, sourcePropId: string, targetEntityId: string, targetPropId: string, type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY') => void
+}> = ({ currentEntity, model, onClose, onCreate }) => {
+    const [sourceEntityId, setSourceEntityId] = useState(currentEntity.id);
+    const [sourcePropId, setSourcePropId] = useState('');
     const [targetEntityId, setTargetEntityId] = useState('');
     const [targetPropId, setTargetPropId] = useState('');
     const [relType, setRelType] = useState<'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY'>('ONE_TO_MANY');
 
-    const sourcePropName = sourceEntity.properties.find(p => p.id === sourcePropId)?.name;
+    const sourceEntity = model.entities.find(e => e.id === sourceEntityId);
     const targetEntity = model.entities.find(e => e.id === targetEntityId);
     
-    // Filter out source entity to prevent self-linking for this demo (optional constraint)
-    const availableEntities = model.entities.filter(e => e.id !== sourceEntity.id);
+    const availableTargetEntities = model.entities.filter(e => e.id !== sourceEntityId);
 
     return (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-[480px] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl w-[560px] overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                     <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                         <Link size={18} className="text-blue-600"/>
@@ -3499,80 +3496,122 @@ const CreateLinkModal: React.FC<{
                 </div>
                 
                 <div className="p-6">
-                    <div className="flex items-center gap-3 mb-6 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    {/* Visual Preview */}
+                    <div className="flex items-center gap-3 mb-6 bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-100">
                         <div className="flex-1">
                             <div className="text-[10px] uppercase text-blue-600 font-bold mb-0.5">Source</div>
-                            <div className="text-sm font-medium text-gray-900">{sourceEntity.name}</div>
-                            <div className="text-xs text-gray-500">{sourcePropName}</div>
+                            <div className="text-sm font-medium text-gray-900">{sourceEntity?.name || '...'}</div>
+                            <div className="text-xs text-gray-500">{sourceEntity?.properties.find(p => p.id === sourcePropId)?.name || '...'}</div>
                         </div>
-                        <ArrowRight className="text-blue-300" size={20} />
+                        <ArrowRight className="text-blue-400" size={24} />
                         <div className="flex-1 text-right">
-                             <div className="text-[10px] uppercase text-gray-500 font-bold mb-0.5">Target</div>
+                             <div className="text-[10px] uppercase text-purple-600 font-bold mb-0.5">Target</div>
                              <div className="text-sm font-medium text-gray-900">{targetEntity?.name || '...'}</div>
                              <div className="text-xs text-gray-500">{targetEntity?.properties.find(p => p.id === targetPropId)?.name || '...'}</div>
                         </div>
                     </div>
 
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Select Target Entity</label>
-                            <select 
-                                value={targetEntityId} 
-                                onChange={e => {
-                                    setTargetEntityId(e.target.value);
-                                    setTargetPropId(''); // reset prop when entity changes
-                                }}
-                                className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2"
-                            >
-                                <option value="">Select Entity...</option>
-                                {availableEntities.map(e => (
-                                    <option key={e.id} value={e.id}>{e.name}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Select Target Property</label>
-                            <select 
-                                value={targetPropId} 
-                                onChange={e => setTargetPropId(e.target.value)}
-                                disabled={!targetEntityId}
-                                className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2 disabled:bg-gray-100 disabled:text-gray-400"
-                            >
-                                <option value="">Select Property...</option>
-                                {targetEntity?.properties.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Cardinality</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {['ONE_TO_ONE', 'ONE_TO_MANY', 'MANY_TO_MANY'].map(opt => (
-                                    <button
-                                        key={opt}
-                                        onClick={() => setRelType(opt as any)}
-                                        className={`text-xs py-2 px-1 rounded border ${relType === opt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-                                    >
-                                        {opt === 'ONE_TO_ONE' && '1:1'}
-                                        {opt === 'ONE_TO_MANY' && '1:N'}
-                                        {opt === 'MANY_TO_MANY' && 'N:N'}
-                                    </button>
-                                ))}
+                    <div className="grid grid-cols-2 gap-6">
+                        {/* Source Column */}
+                        <div className="space-y-3">
+                            <div className="text-xs font-bold text-blue-600 uppercase tracking-wide border-b border-blue-100 pb-1">Source</div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Entity</label>
+                                <select 
+                                    value={sourceEntityId} 
+                                    onChange={e => {
+                                        setSourceEntityId(e.target.value);
+                                        setSourcePropId('');
+                                        if (e.target.value === targetEntityId) {
+                                            setTargetEntityId('');
+                                            setTargetPropId('');
+                                        }
+                                    }}
+                                    className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2"
+                                >
+                                    {model.entities.map(e => (
+                                        <option key={e.id} value={e.id}>{e.name}</option>
+                                    ))}
+                                </select>
                             </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Property</label>
+                                <select 
+                                    value={sourcePropId} 
+                                    onChange={e => setSourcePropId(e.target.value)}
+                                    className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2"
+                                >
+                                    <option value="">Select Property...</option>
+                                    {sourceEntity?.properties.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Target Column */}
+                        <div className="space-y-3">
+                            <div className="text-xs font-bold text-purple-600 uppercase tracking-wide border-b border-purple-100 pb-1">Target</div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Entity</label>
+                                <select 
+                                    value={targetEntityId} 
+                                    onChange={e => {
+                                        setTargetEntityId(e.target.value);
+                                        setTargetPropId('');
+                                    }}
+                                    className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2"
+                                >
+                                    <option value="">Select Entity...</option>
+                                    {availableTargetEntities.map(e => (
+                                        <option key={e.id} value={e.id}>{e.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Property</label>
+                                <select 
+                                    value={targetPropId} 
+                                    onChange={e => setTargetPropId(e.target.value)}
+                                    disabled={!targetEntityId}
+                                    className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2 disabled:bg-gray-100 disabled:text-gray-400"
+                                >
+                                    <option value="">Select Property...</option>
+                                    {targetEntity?.properties.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Cardinality */}
+                    <div className="mt-6">
+                        <label className="block text-xs font-semibold text-gray-600 uppercase mb-2">Cardinality</label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {['ONE_TO_ONE', 'ONE_TO_MANY', 'MANY_TO_MANY'].map(opt => (
+                                <button
+                                    key={opt}
+                                    onClick={() => setRelType(opt as any)}
+                                    className={`text-xs py-2.5 px-2 rounded-lg border transition-colors ${relType === opt ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                >
+                                    {opt === 'ONE_TO_ONE' && '1:1 (One to One)'}
+                                    {opt === 'ONE_TO_MANY' && '1:N (One to Many)'}
+                                    {opt === 'MANY_TO_MANY' && 'N:N (Many to Many)'}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
 
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
-                    <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 font-medium hover:bg-gray-200 rounded">Cancel</button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
                     <button 
-                        onClick={() => onCreate(targetEntityId, targetPropId, relType)}
-                        disabled={!targetEntityId || !targetPropId}
-                        className="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded hover:bg-blue-700 disabled:opacity-50 shadow-sm"
+                        onClick={() => onCreate(sourceEntityId, sourcePropId, targetEntityId, targetPropId, relType)}
+                        disabled={!sourceEntityId || !sourcePropId || !targetEntityId || !targetPropId}
+                        className="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors"
                     >
-                        Create Link
+                        Create Relationship
                     </button>
                 </div>
             </div>
