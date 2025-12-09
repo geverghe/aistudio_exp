@@ -3473,16 +3473,21 @@ const CreateLinkModal: React.FC<{
     onClose: () => void,
     onCreate: (sourceEntityId: string, sourcePropId: string, targetEntityId: string, targetPropId: string, type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY') => void
 }> = ({ currentEntity, model, onClose, onCreate }) => {
-    const [sourceEntityId, setSourceEntityId] = useState(currentEntity.id);
+    const [direction, setDirection] = useState<'outgoing' | 'incoming'>('outgoing');
     const [sourcePropId, setSourcePropId] = useState('');
-    const [targetEntityId, setTargetEntityId] = useState('');
-    const [targetPropId, setTargetPropId] = useState('');
+    const [otherEntityId, setOtherEntityId] = useState('');
+    const [otherPropId, setOtherPropId] = useState('');
     const [relType, setRelType] = useState<'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY'>('ONE_TO_MANY');
 
+    const otherEntity = model.entities.find(e => e.id === otherEntityId);
+    const availableOtherEntities = model.entities.filter(e => e.id !== currentEntity.id);
+
+    const sourceEntityId = direction === 'outgoing' ? currentEntity.id : otherEntityId;
+    const targetEntityId = direction === 'outgoing' ? otherEntityId : currentEntity.id;
     const sourceEntity = model.entities.find(e => e.id === sourceEntityId);
     const targetEntity = model.entities.find(e => e.id === targetEntityId);
-    
-    const availableTargetEntities = model.entities.filter(e => e.id !== sourceEntityId);
+    const finalSourcePropId = direction === 'outgoing' ? sourcePropId : otherPropId;
+    const finalTargetPropId = direction === 'outgoing' ? otherPropId : sourcePropId;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -3496,43 +3501,49 @@ const CreateLinkModal: React.FC<{
                 </div>
                 
                 <div className="p-6">
+                    {/* Direction Toggle */}
+                    <div className="mb-4">
+                        <label className="block text-xs font-semibold text-gray-600 uppercase mb-2">Direction</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={() => { setDirection('outgoing'); setOtherEntityId(''); setOtherPropId(''); setSourcePropId(''); }}
+                                className={`text-xs py-2.5 px-3 rounded-lg border transition-colors flex items-center justify-center gap-2 ${direction === 'outgoing' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                            >
+                                <span className="font-medium">{currentEntity.name}</span>
+                                <ArrowRight size={14} />
+                                <span>Other</span>
+                            </button>
+                            <button
+                                onClick={() => { setDirection('incoming'); setOtherEntityId(''); setOtherPropId(''); setSourcePropId(''); }}
+                                className={`text-xs py-2.5 px-3 rounded-lg border transition-colors flex items-center justify-center gap-2 ${direction === 'incoming' ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                            >
+                                <span>Other</span>
+                                <ArrowRight size={14} />
+                                <span className="font-medium">{currentEntity.name}</span>
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Visual Preview */}
                     <div className="flex items-center gap-3 mb-6 bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-100">
                         <div className="flex-1">
                             <div className="text-[10px] uppercase text-blue-600 font-bold mb-0.5">Source</div>
                             <div className="text-sm font-medium text-gray-900">{sourceEntity?.name || '...'}</div>
-                            <div className="text-xs text-gray-500">{sourceEntity?.properties.find(p => p.id === sourcePropId)?.name || '...'}</div>
+                            <div className="text-xs text-gray-500">{sourceEntity?.properties.find(p => p.id === finalSourcePropId)?.name || '...'}</div>
                         </div>
                         <ArrowRight className="text-blue-400" size={24} />
                         <div className="flex-1 text-right">
                              <div className="text-[10px] uppercase text-purple-600 font-bold mb-0.5">Target</div>
                              <div className="text-sm font-medium text-gray-900">{targetEntity?.name || '...'}</div>
-                             <div className="text-xs text-gray-500">{targetEntity?.properties.find(p => p.id === targetPropId)?.name || '...'}</div>
+                             <div className="text-xs text-gray-500">{targetEntity?.properties.find(p => p.id === finalTargetPropId)?.name || '...'}</div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6">
-                        {/* Source Column */}
+                        {/* Current Entity Column */}
                         <div className="space-y-3">
-                            <div className="text-xs font-bold text-blue-600 uppercase tracking-wide border-b border-blue-100 pb-1">Source</div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Entity</label>
-                                <select 
-                                    value={sourceEntityId} 
-                                    onChange={e => {
-                                        setSourceEntityId(e.target.value);
-                                        setSourcePropId('');
-                                        if (e.target.value === targetEntityId) {
-                                            setTargetEntityId('');
-                                            setTargetPropId('');
-                                        }
-                                    }}
-                                    className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2"
-                                >
-                                    {model.entities.map(e => (
-                                        <option key={e.id} value={e.id}>{e.name}</option>
-                                    ))}
-                                </select>
+                            <div className={`text-xs font-bold uppercase tracking-wide border-b pb-1 ${direction === 'outgoing' ? 'text-blue-600 border-blue-100' : 'text-purple-600 border-purple-100'}`}>
+                                {currentEntity.name} {direction === 'outgoing' ? '(Source)' : '(Target)'}
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Property</label>
@@ -3542,28 +3553,30 @@ const CreateLinkModal: React.FC<{
                                     className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2"
                                 >
                                     <option value="">Select Property...</option>
-                                    {sourceEntity?.properties.map(p => (
+                                    {currentEntity.properties.map(p => (
                                         <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
                                     ))}
                                 </select>
                             </div>
                         </div>
 
-                        {/* Target Column */}
+                        {/* Other Entity Column */}
                         <div className="space-y-3">
-                            <div className="text-xs font-bold text-purple-600 uppercase tracking-wide border-b border-purple-100 pb-1">Target</div>
+                            <div className={`text-xs font-bold uppercase tracking-wide border-b pb-1 ${direction === 'incoming' ? 'text-blue-600 border-blue-100' : 'text-purple-600 border-purple-100'}`}>
+                                Other Entity {direction === 'incoming' ? '(Source)' : '(Target)'}
+                            </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Entity</label>
                                 <select 
-                                    value={targetEntityId} 
+                                    value={otherEntityId} 
                                     onChange={e => {
-                                        setTargetEntityId(e.target.value);
-                                        setTargetPropId('');
+                                        setOtherEntityId(e.target.value);
+                                        setOtherPropId('');
                                     }}
                                     className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2"
                                 >
                                     <option value="">Select Entity...</option>
-                                    {availableTargetEntities.map(e => (
+                                    {availableOtherEntities.map(e => (
                                         <option key={e.id} value={e.id}>{e.name}</option>
                                     ))}
                                 </select>
@@ -3571,13 +3584,13 @@ const CreateLinkModal: React.FC<{
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Property</label>
                                 <select 
-                                    value={targetPropId} 
-                                    onChange={e => setTargetPropId(e.target.value)}
-                                    disabled={!targetEntityId}
+                                    value={otherPropId} 
+                                    onChange={e => setOtherPropId(e.target.value)}
+                                    disabled={!otherEntityId}
                                     className="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 border p-2 disabled:bg-gray-100 disabled:text-gray-400"
                                 >
                                     <option value="">Select Property...</option>
-                                    {targetEntity?.properties.map(p => (
+                                    {otherEntity?.properties.map(p => (
                                         <option key={p.id} value={p.id}>{p.name} ({p.dataType})</option>
                                     ))}
                                 </select>
@@ -3607,8 +3620,8 @@ const CreateLinkModal: React.FC<{
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
                     <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
                     <button 
-                        onClick={() => onCreate(sourceEntityId, sourcePropId, targetEntityId, targetPropId, relType)}
-                        disabled={!sourceEntityId || !sourcePropId || !targetEntityId || !targetPropId}
+                        onClick={() => onCreate(sourceEntityId, finalSourcePropId, targetEntityId, finalTargetPropId, relType)}
+                        disabled={!sourcePropId || !otherEntityId || !otherPropId}
                         className="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors"
                     >
                         Create Relationship
