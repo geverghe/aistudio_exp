@@ -1951,22 +1951,84 @@ const EntityConfigView: React.FC<any> = ({
                                         )}
                                     </div>
 
-                                    <div className="pt-2 flex justify-end">
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onLinkClick(prop.id);
-                                            }}
-                                            className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                                        >
-                                            <Link size={12} />
-                                            Link to another entity
-                                        </button>
-                                    </div>
                                 </div>
                             )}
                         </div>
                     )})}
+                </div>
+            </div>
+
+            {/* Relationships Section */}
+            <div className="mt-8">
+                <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                        Relationships ({model.relationships.filter(r => r.fromEntityId === entity.id || r.toEntityId === entity.id).length})
+                    </h4>
+                    <button 
+                        onClick={() => onLinkClick(null)}
+                        className="text-blue-600 text-xs font-medium hover:bg-blue-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                    >
+                        <Plus size={14} />
+                        Add Relationship
+                    </button>
+                </div>
+                <div className="space-y-2">
+                    {model.relationships
+                        .filter(r => r.fromEntityId === entity.id || r.toEntityId === entity.id)
+                        .map(rel => {
+                            const isSource = rel.fromEntityId === entity.id;
+                            const otherEntityId = isSource ? rel.toEntityId : rel.fromEntityId;
+                            const otherEntity = model.entities.find(e => e.id === otherEntityId);
+                            const fromProp = entity.properties.find(p => p.id === rel.fromPropertyId);
+                            const toProp = otherEntity?.properties.find(p => p.id === rel.toPropertyId);
+                            
+                            return (
+                                <div key={rel.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-sm">
+                                            {isSource ? (
+                                                <>
+                                                    <span className="font-medium text-gray-800">{fromProp?.name || 'Unknown'}</span>
+                                                    <ArrowRight size={14} className="text-gray-400" />
+                                                    <span className="text-blue-600">{otherEntity?.name || 'Unknown'}</span>
+                                                    <span className="text-gray-400">.</span>
+                                                    <span className="text-gray-600">{toProp?.name || 'Unknown'}</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="text-blue-600">{otherEntity?.name || 'Unknown'}</span>
+                                                    <span className="text-gray-400">.</span>
+                                                    <span className="text-gray-600">{fromProp?.name || 'Unknown'}</span>
+                                                    <ArrowRight size={14} className="text-gray-400" />
+                                                    <span className="font-medium text-gray-800">{toProp?.name || 'Unknown'}</span>
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">
+                                                {rel.cardinality || 'ONE_TO_MANY'}
+                                            </span>
+                                            <button
+                                                onClick={() => {
+                                                    setModel(prev => ({
+                                                        ...prev,
+                                                        relationships: prev.relationships.filter(r => r.id !== rel.id)
+                                                    }));
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    {model.relationships.filter(r => r.fromEntityId === entity.id || r.toEntityId === entity.id).length === 0 && (
+                        <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                            No relationships defined for this entity
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
