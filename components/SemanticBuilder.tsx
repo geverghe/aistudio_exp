@@ -44,7 +44,7 @@ type Selection =
   | { type: 'RELATIONSHIP'; id: string }
   | null;
 
-type ViewMode = 'GRAPH' | 'AUTHORING' | 'FULL_PAGE_ENTITY' | 'DEPLOY';
+type ViewMode = 'GRAPH' | 'AUTHORING' | 'FULL_PAGE_ENTITY' | 'DEPLOY' | 'SETTINGS';
 
 export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({ 
   models, 
@@ -285,6 +285,16 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
       );
   }
 
+  if (viewMode === 'SETTINGS' && model) {
+      return (
+          <ModelSettingsPage 
+            model={model}
+            setModel={setModel}
+            onBack={() => setViewMode('GRAPH')}
+          />
+      );
+  }
+
   // Model Directory View - show when no model is selected
   if (!model) {
     return (
@@ -407,6 +417,19 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
              
              {showSettingsMenu && (
                <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                 <button
+                   onClick={() => {
+                     setViewMode('SETTINGS');
+                     setShowSettingsMenu(false);
+                   }}
+                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                 >
+                   <Settings2 size={16} className="text-gray-400" />
+                   <div>
+                     <div className="font-medium">Model Settings</div>
+                     <div className="text-xs text-gray-400">Description, aspects, glossary</div>
+                   </div>
+                 </button>
                  <button
                    onClick={() => {
                      setShowGitFileModal(true);
