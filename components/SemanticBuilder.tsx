@@ -2433,6 +2433,9 @@ const GraphView: React.FC<{
     onSelect: (sel: Selection) => void 
 }> = ({ model, selection, onSelect }) => {
     
+    // Zoom state: 'semantic' = only semantic layer, 'full' = both layers
+    const [viewLevel, setViewLevel] = useState<'semantic' | 'full'>('semantic');
+    
     // Calculate layout
     const layout = useMemo(() => {
         const entityNodes = model.entities.map((ent, idx) => ({
@@ -2475,27 +2478,31 @@ const GraphView: React.FC<{
         });
 
         const tableNodes = Array.from(tableNodesMap.values());
-        const nodes = [...entityNodes, ...tableNodes];
+        
+        // Only include physical tables when in 'full' view
+        const nodes = viewLevel === 'full' ? [...entityNodes, ...tableNodes] : entityNodes;
 
         const edges: Array<{ id: string; source: string; target: string; type: string; label?: string; title?: string }> = [];
         
-        // Entity -> Physical Table binding edges
-        model.entities.forEach(ent => {
-            if (ent.bindings && ent.bindings.length > 0) {
-                ent.bindings.forEach((binding, bindIdx) => {
-                    const resource = binding.resource;
-                    if (resource) {
-                        const tableId = `physical_${resource.replace(/[^a-zA-Z0-9]/g, '_')}`;
-                        edges.push({
-                            id: `bind_${ent.id}_${bindIdx}`,
-                            source: ent.id,
-                            target: tableId,
-                            type: 'BINDING'
-                        });
-                    }
-                });
-            }
-        });
+        // Entity -> Physical Table binding edges (only in full view)
+        if (viewLevel === 'full') {
+            model.entities.forEach(ent => {
+                if (ent.bindings && ent.bindings.length > 0) {
+                    ent.bindings.forEach((binding, bindIdx) => {
+                        const resource = binding.resource;
+                        if (resource) {
+                            const tableId = `physical_${resource.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                            edges.push({
+                                id: `bind_${ent.id}_${bindIdx}`,
+                                source: ent.id,
+                                target: tableId,
+                                type: 'BINDING'
+                            });
+                        }
+                    });
+                }
+            });
+        }
 
         // Entity -> Entity relationships
         model.relationships.forEach(rel => {
@@ -2509,8 +2516,8 @@ const GraphView: React.FC<{
             });
         });
 
-        return { nodes, edges };
-    }, [model]);
+        return { nodes, edges, tableNodes };
+    }, [model, viewLevel]);
 
     return (
         <div 
@@ -2536,9 +2543,14 @@ const GraphView: React.FC<{
                 
                 {/* Layer Labels */}
                 <text x="30" y="70" className="text-xs font-bold fill-blue-600 uppercase">Semantic Layer</text>
-                <text x="30" y="350" className="text-xs font-bold fill-indigo-600 uppercase">Physical Layer</text>
-                <line x1="30" y1="80" x2="200" y2="80" stroke="#3B82F6" strokeWidth="2" strokeDasharray="none" />
-                <line x1="30" y1="360" x2="200" y2="360" stroke="#6366F1" strokeWidth="2" strokeDasharray="none" />
+                <line x1="30" y1="80" x2="200" y2="80" stroke="#3B82F6" strokeWidth="2" />
+                
+                {viewLevel === 'full' && (
+                    <>
+                        <text x="30" y="350" className="text-xs font-bold fill-indigo-600 uppercase">Physical Layer</text>
+                        <line x1="30" y1="360" x2="200" y2="360" stroke="#6366F1" strokeWidth="2" />
+                    </>
+                )}
 
                 {/* Edges */}
                 {layout.edges.map(edge => {
@@ -2720,8 +2732,29 @@ const GraphView: React.FC<{
                 })}
             </svg>
             
+            {/* Zoom Controls */}
+            <div className="absolute top-4 right-4 flex flex-col gap-2">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setViewLevel(viewLevel === 'semantic' ? 'full' : 'semantic');
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-md border transition-all ${
+                        viewLevel === 'full' 
+                            ? 'bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700' 
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                >
+                    <Layers size={16} />
+                    <span className="text-sm font-medium">
+                        {viewLevel === 'full' ? 'Hide Physical Layer' : 'Show Physical Layer'}
+                    </span>
+                </button>
+            </div>
+            
+            {/* Stats */}
             <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur border border-gray-200 p-2 rounded text-xs text-gray-500 shadow-sm pointer-events-none">
-                Graph View • {layout.nodes.length} Nodes • {layout.edges.length} Connections
+                {viewLevel === 'semantic' ? 'Semantic Layer' : 'Full View'} • {layout.nodes.length} Nodes • {layout.edges.length} Connections
             </div>
         </div>
     );
