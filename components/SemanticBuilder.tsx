@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory, PropertyType } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download, Key, Edit3 } from 'lucide-react';
-import { suggestEntitiesFromDescription } from '../services/geminiService';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download, Key, Edit3, MessageSquare, Send, Bot, User, Sparkles } from 'lucide-react';
+import { suggestEntitiesFromDescription, generateAssistantResponse } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
 import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
 import { GlossarySelector } from './GlossarySelector';
@@ -91,6 +91,13 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
   const [showGitFileModal, setShowGitFileModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Talk to Your Data Chat State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{id: string; role: 'user' | 'model'; text: string}>>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatThinking, setIsChatThinking] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   
   // Helper to get selected objects
   const selectedEntity = useMemo(() => 
@@ -223,6 +230,56 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
           setFullScreenEntityId(selectedEntity.id);
           setViewMode('FULL_PAGE_ENTITY');
       }
+  };
+
+  // Scroll chat to bottom when messages change
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  // Initialize chat with welcome message when opened
+  useEffect(() => {
+    if (isChatOpen && chatMessages.length === 0 && model) {
+      setChatMessages([{
+        id: 'welcome',
+        role: 'model',
+        text: `Hi! I'm your Data Agent for the "${model.name}" model. Ask me anything about your business data - I can help you understand relationships between entities, explore data lineage, and answer questions using the semantic context of your model.`
+      }]);
+    }
+  }, [isChatOpen, model]);
+
+  // Handle sending chat message
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || !model || isChatThinking) return;
+    
+    const userMsg = {
+      id: Date.now().toString(),
+      role: 'user' as const,
+      text: chatInput
+    };
+    
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput('');
+    setIsChatThinking(true);
+    
+    try {
+      const history = chatMessages.map(m => ({ role: m.role, text: m.text }));
+      const responseText = await generateAssistantResponse(userMsg.text, model, history);
+      
+      setChatMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        text: responseText
+      }]);
+    } catch (error) {
+      setChatMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        text: "I encountered an error processing your request. Please try again."
+      }]);
+    }
+    
+    setIsChatThinking(false);
   };
 
   // Infer the table name for the selected entity to populate dropdowns
@@ -534,6 +591,13 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
         {/* Floating Actions */}
         <div className="absolute top-4 right-4 flex gap-2 z-10">
             <button 
+                onClick={() => setIsChatOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all"
+            >
+                <MessageSquare size={16} />
+                Talk to Your Data
+            </button>
+            <button 
                 onClick={() => setViewMode('DEPLOY')}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
             >
@@ -542,6 +606,122 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
             </button>
         </div>
       </div>
+
+      {/* Talk to Your Data Chat Panel */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/30" onClick={() => setIsChatOpen(false)} />
+          <div className="w-[480px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Chat Header */}
+            <div className="h-16 border-b border-gray-200 flex items-center justify-between px-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Talk to Your Data</h3>
+                  <p className="text-xs text-white/80">{model.name}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsChatOpen(false)} 
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+              {chatMessages.map((msg) => (
+                <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                    msg.role === 'user' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white'
+                  }`}>
+                    {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
+                  </div>
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
+                    msg.role === 'user' 
+                      ? 'bg-blue-600 text-white rounded-br-md' 
+                      : 'bg-white border border-gray-200 text-gray-700 rounded-bl-md shadow-sm'
+                  }`}>
+                    <div className="whitespace-pre-wrap">{msg.text}</div>
+                  </div>
+                </div>
+              ))}
+              {isChatThinking && (
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center shrink-0">
+                    <Bot size={14} />
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></span>
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Example Questions */}
+            {chatMessages.length <= 1 && (
+              <div className="px-4 py-3 border-t border-gray-100 bg-white">
+                <p className="text-xs text-gray-500 mb-2">Try asking:</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "What entities are in this model?",
+                    "How are entities related?",
+                    "What data sources are used?"
+                  ].map((q, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setChatInput(q);
+                      }}
+                      className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Chat Input */}
+            <div className="p-4 border-t border-gray-200 bg-white">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleChatSend();
+                    }
+                  }}
+                  placeholder="Ask about your data..."
+                  className="flex-1 px-4 py-3 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
+                  disabled={isChatThinking}
+                />
+                <button
+                  onClick={handleChatSend}
+                  disabled={!chatInput.trim() || isChatThinking}
+                  className="p-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 text-center mt-2">AI responses are based on your semantic model context</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Right: Resizable Slide-out Detail Pane */}
       {selection && (
