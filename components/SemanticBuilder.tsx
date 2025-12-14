@@ -2618,9 +2618,27 @@ const GraphView: React.FC<{
     onSelect: (sel: Selection) => void 
 }> = ({ model, selection, onSelect }) => {
     
-    // Zoom state: 'semantic' = only semantic layer, 'full' = both layers
-    const [viewLevel, setViewLevel] = useState<'semantic' | 'full'>('semantic');
+    // Layer visibility state
+    const [showSemanticLayer, setShowSemanticLayer] = useState(true);
+    const [showPhysicalLayer, setShowPhysicalLayer] = useState(false);
+    const [showLayersDropdown, setShowLayersDropdown] = useState(false);
+    const layersDropdownRef = useRef<HTMLDivElement>(null);
     const [zoomScale, setZoomScale] = useState(0.85);
+    
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (layersDropdownRef.current && !layersDropdownRef.current.contains(event.target as Node)) {
+                setShowLayersDropdown(false);
+            }
+        };
+        if (showLayersDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showLayersDropdown]);
     
     // Drag state for movable nodes
     const [nodePositions, setNodePositions] = useState<Record<string, {x: number, y: number}>>({});
@@ -2675,13 +2693,19 @@ const GraphView: React.FC<{
 
         const tableNodes = Array.from(tableNodesMap.values());
         
-        // Only include physical tables when in 'full' view
-        const nodes = viewLevel === 'full' ? [...entityNodes, ...tableNodes] : entityNodes;
+        // Filter nodes based on layer visibility
+        let nodes: typeof entityNodes = [];
+        if (showSemanticLayer) {
+            nodes = [...nodes, ...entityNodes];
+        }
+        if (showPhysicalLayer) {
+            nodes = [...nodes, ...tableNodes];
+        }
 
         const edges: Array<{ id: string; source: string; target: string; type: string; label?: string; title?: string }> = [];
         
-        // Entity -> Physical Table binding edges (only in full view)
-        if (viewLevel === 'full') {
+        // Entity -> Physical Table binding edges (only when both layers are visible)
+        if (showSemanticLayer && showPhysicalLayer) {
             model.entities.forEach(ent => {
                 if (ent.bindings && ent.bindings.length > 0) {
                     ent.bindings.forEach((binding, bindIdx) => {
@@ -2700,20 +2724,22 @@ const GraphView: React.FC<{
             });
         }
 
-        // Entity -> Entity relationships
-        model.relationships.forEach(rel => {
-            edges.push({
-                id: rel.id,
-                source: rel.sourceEntityId,
-                target: rel.targetEntityId,
-                type: 'RELATIONSHIP',
-                label: rel.type,
-                title: rel.label || '' // Pass label for rendering
+        // Entity -> Entity relationships (only when semantic layer is visible)
+        if (showSemanticLayer) {
+            model.relationships.forEach(rel => {
+                edges.push({
+                    id: rel.id,
+                    source: rel.sourceEntityId,
+                    target: rel.targetEntityId,
+                    type: 'RELATIONSHIP',
+                    label: rel.type,
+                    title: rel.label || '' // Pass label for rendering
+                });
             });
-        });
+        }
 
         return { nodes, edges, tableNodes };
-    }, [model, viewLevel]);
+    }, [model, showSemanticLayer, showPhysicalLayer]);
     
     // Get node position (custom if dragged, otherwise from layout)
     const getNodePosition = (nodeId: string, defaultX: number, defaultY: number) => {
@@ -3010,23 +3036,56 @@ const GraphView: React.FC<{
                     </button>
                 </div>
                 
-                {/* Layer Toggle */}
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setViewLevel(viewLevel === 'semantic' ? 'full' : 'semantic');
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-md border transition-all ${
-                        viewLevel === 'full' 
-                            ? 'bg-purple-600 text-white border-purple-700 hover:bg-purple-700' 
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                    }`}
-                >
-                    <Layers size={16} />
-                    <span className="text-sm font-medium">
-                        {viewLevel === 'full' ? 'Hide Physical' : 'Show Physical'}
-                    </span>
-                </button>
+                {/* Layers Dropdown */}
+                <div className="relative" ref={layersDropdownRef}>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowLayersDropdown(!showLayersDropdown);
+                        }}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-md border transition-all ${
+                            showPhysicalLayer 
+                                ? 'bg-purple-600 text-white border-purple-700 hover:bg-purple-700' 
+                                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        }`}
+                    >
+                        <Layers size={16} />
+                        <span className="text-sm font-medium">Layers</span>
+                        <ChevronDown size={14} className={`transition-transform ${showLayersDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {showLayersDropdown && (
+                        <div 
+                            className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[180px] z-50"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <label className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={showSemanticLayer}
+                                    onChange={(e) => setShowSemanticLayer(e.target.checked)}
+                                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                />
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600"></div>
+                                    <span className="text-sm text-gray-700">Semantic Layer</span>
+                                </div>
+                            </label>
+                            <label className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={showPhysicalLayer}
+                                    onChange={(e) => setShowPhysicalLayer(e.target.checked)}
+                                    className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                                />
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-500 to-pink-600"></div>
+                                    <span className="text-sm text-gray-700">Physical Layer</span>
+                                </div>
+                            </label>
+                        </div>
+                    )}
+                </div>
                 
                 {/* Stats */}
                 <div className="bg-white/90 backdrop-blur border border-gray-200 px-3 py-2 rounded-lg text-xs text-gray-500 shadow-sm">
@@ -4314,12 +4373,157 @@ const NewModelModal: React.FC<{
     const handleCreate = () => {
         setIsGenerating(true);
         setTimeout(() => {
+            // Generate a supply chain model with entities and relationships
+            const supplyChainEntities: Entity[] = [
+                {
+                    id: 'entity_supplier',
+                    name: 'Supplier',
+                    type: EntityType.ENTITY,
+                    description: 'Vendors and suppliers providing raw materials and goods',
+                    properties: [
+                        { id: 'prop_supplier_id', name: 'supplier_id', type: PropertyType.STRING, description: 'Unique supplier identifier', binding: 'SCM_DIM_SUPPLIER.supplier_id', isPrimaryKey: true },
+                        { id: 'prop_supplier_name', name: 'supplier_name', type: PropertyType.STRING, description: 'Name of the supplier company', binding: 'SCM_DIM_SUPPLIER.supplier_name' },
+                        { id: 'prop_supplier_country', name: 'country', type: PropertyType.STRING, description: 'Country where supplier is located', binding: 'SCM_DIM_SUPPLIER.country' },
+                        { id: 'prop_supplier_rating', name: 'rating', type: PropertyType.FLOAT, description: 'Performance rating (1-5)', binding: 'SCM_DIM_SUPPLIER.rating' },
+                        { id: 'prop_supplier_lead_time', name: 'avg_lead_time_days', type: PropertyType.INTEGER, description: 'Average lead time in days', binding: 'SCM_DIM_SUPPLIER.avg_lead_time_days' }
+                    ],
+                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_DIM_SUPPLIER' }]
+                },
+                {
+                    id: 'entity_warehouse',
+                    name: 'Warehouse',
+                    type: EntityType.DIMENSION,
+                    description: 'Distribution centers and storage facilities',
+                    properties: [
+                        { id: 'prop_wh_id', name: 'warehouse_id', type: PropertyType.STRING, description: 'Unique warehouse identifier', binding: 'SCM_DIM_WAREHOUSE.warehouse_id', isPrimaryKey: true },
+                        { id: 'prop_wh_name', name: 'warehouse_name', type: PropertyType.STRING, description: 'Name of the warehouse', binding: 'SCM_DIM_WAREHOUSE.warehouse_name' },
+                        { id: 'prop_wh_location', name: 'location', type: PropertyType.STRING, description: 'City and state location', binding: 'SCM_DIM_WAREHOUSE.location' },
+                        { id: 'prop_wh_capacity', name: 'capacity_units', type: PropertyType.INTEGER, description: 'Maximum storage capacity', binding: 'SCM_DIM_WAREHOUSE.capacity_units' },
+                        { id: 'prop_wh_type', name: 'warehouse_type', type: PropertyType.STRING, description: 'Type: Distribution, Fulfillment, Cold Storage', binding: 'SCM_DIM_WAREHOUSE.warehouse_type' }
+                    ],
+                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_DIM_WAREHOUSE' }]
+                },
+                {
+                    id: 'entity_product',
+                    name: 'Product',
+                    type: EntityType.DIMENSION,
+                    description: 'Products and SKUs in the supply chain',
+                    properties: [
+                        { id: 'prop_prod_sku', name: 'sku_id', type: PropertyType.STRING, description: 'Stock keeping unit identifier', binding: 'SCM_DIM_PRODUCT.sku_id', isPrimaryKey: true },
+                        { id: 'prop_prod_name', name: 'product_name', type: PropertyType.STRING, description: 'Product display name', binding: 'SCM_DIM_PRODUCT.product_name' },
+                        { id: 'prop_prod_category', name: 'category', type: PropertyType.STRING, description: 'Product category', binding: 'SCM_DIM_PRODUCT.category' },
+                        { id: 'prop_prod_unit_cost', name: 'unit_cost', type: PropertyType.FLOAT, description: 'Cost per unit', binding: 'SCM_DIM_PRODUCT.unit_cost' },
+                        { id: 'prop_prod_weight', name: 'weight_kg', type: PropertyType.FLOAT, description: 'Weight in kilograms', binding: 'SCM_DIM_PRODUCT.weight_kg' }
+                    ],
+                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_DIM_PRODUCT' }]
+                },
+                {
+                    id: 'entity_inventory',
+                    name: 'Inventory',
+                    type: EntityType.FACT,
+                    description: 'Current inventory levels across warehouses',
+                    properties: [
+                        { id: 'prop_inv_id', name: 'inventory_id', type: PropertyType.STRING, description: 'Unique inventory record ID', binding: 'SCM_FACT_INVENTORY.inventory_id', isPrimaryKey: true },
+                        { id: 'prop_inv_sku', name: 'sku_id', type: PropertyType.STRING, description: 'Product SKU', binding: 'SCM_FACT_INVENTORY.sku_id' },
+                        { id: 'prop_inv_wh', name: 'warehouse_id', type: PropertyType.STRING, description: 'Warehouse location', binding: 'SCM_FACT_INVENTORY.warehouse_id' },
+                        { id: 'prop_inv_qty', name: 'quantity_on_hand', type: PropertyType.INTEGER, description: 'Current stock quantity', binding: 'SCM_FACT_INVENTORY.quantity_on_hand' },
+                        { id: 'prop_inv_reorder', name: 'reorder_point', type: PropertyType.INTEGER, description: 'Quantity threshold for reorder', binding: 'SCM_FACT_INVENTORY.reorder_point' },
+                        { id: 'prop_inv_updated', name: 'last_updated', type: PropertyType.TIMESTAMP, description: 'Last inventory update timestamp', binding: 'SCM_FACT_INVENTORY.last_updated' }
+                    ],
+                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_FACT_INVENTORY' }]
+                },
+                {
+                    id: 'entity_shipment',
+                    name: 'Shipment',
+                    type: EntityType.FACT,
+                    description: 'Shipments and deliveries in transit',
+                    properties: [
+                        { id: 'prop_ship_id', name: 'shipment_id', type: PropertyType.STRING, description: 'Unique shipment tracking ID', binding: 'SCM_FACT_SHIPMENT.shipment_id', isPrimaryKey: true },
+                        { id: 'prop_ship_origin', name: 'origin_warehouse_id', type: PropertyType.STRING, description: 'Originating warehouse', binding: 'SCM_FACT_SHIPMENT.origin_warehouse_id' },
+                        { id: 'prop_ship_dest', name: 'destination', type: PropertyType.STRING, description: 'Delivery destination', binding: 'SCM_FACT_SHIPMENT.destination' },
+                        { id: 'prop_ship_carrier', name: 'carrier', type: PropertyType.STRING, description: 'Shipping carrier name', binding: 'SCM_FACT_SHIPMENT.carrier' },
+                        { id: 'prop_ship_status', name: 'status', type: PropertyType.STRING, description: 'Current shipment status', binding: 'SCM_FACT_SHIPMENT.status' },
+                        { id: 'prop_ship_date', name: 'ship_date', type: PropertyType.TIMESTAMP, description: 'Date shipment was dispatched', binding: 'SCM_FACT_SHIPMENT.ship_date' },
+                        { id: 'prop_ship_eta', name: 'estimated_arrival', type: PropertyType.TIMESTAMP, description: 'Expected delivery date', binding: 'SCM_FACT_SHIPMENT.estimated_arrival' }
+                    ],
+                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_FACT_SHIPMENT' }]
+                },
+                {
+                    id: 'entity_order',
+                    name: 'Purchase Order',
+                    type: EntityType.FACT,
+                    description: 'Purchase orders placed with suppliers',
+                    properties: [
+                        { id: 'prop_po_id', name: 'po_id', type: PropertyType.STRING, description: 'Purchase order number', binding: 'SCM_FACT_PO.po_id', isPrimaryKey: true },
+                        { id: 'prop_po_supplier', name: 'supplier_id', type: PropertyType.STRING, description: 'Supplier fulfilling the order', binding: 'SCM_FACT_PO.supplier_id' },
+                        { id: 'prop_po_sku', name: 'sku_id', type: PropertyType.STRING, description: 'Ordered product SKU', binding: 'SCM_FACT_PO.sku_id' },
+                        { id: 'prop_po_qty', name: 'quantity', type: PropertyType.INTEGER, description: 'Quantity ordered', binding: 'SCM_FACT_PO.quantity' },
+                        { id: 'prop_po_total', name: 'total_cost', type: PropertyType.FLOAT, description: 'Total order cost', binding: 'SCM_FACT_PO.total_cost' },
+                        { id: 'prop_po_date', name: 'order_date', type: PropertyType.TIMESTAMP, description: 'Date order was placed', binding: 'SCM_FACT_PO.order_date' },
+                        { id: 'prop_po_status', name: 'status', type: PropertyType.STRING, description: 'Order status: Pending, Confirmed, Shipped, Delivered', binding: 'SCM_FACT_PO.status' }
+                    ],
+                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_FACT_PO' }]
+                }
+            ];
+
+            const supplyChainRelationships: Relationship[] = [
+                {
+                    id: 'rel_supplier_product',
+                    sourceEntityId: 'entity_supplier',
+                    targetEntityId: 'entity_product',
+                    type: 'ONE_TO_MANY',
+                    description: 'Supplier provides products',
+                    label: 'supplies'
+                },
+                {
+                    id: 'rel_product_inventory',
+                    sourceEntityId: 'entity_product',
+                    targetEntityId: 'entity_inventory',
+                    type: 'ONE_TO_MANY',
+                    description: 'Product has inventory records',
+                    label: 'stocked as'
+                },
+                {
+                    id: 'rel_warehouse_inventory',
+                    sourceEntityId: 'entity_warehouse',
+                    targetEntityId: 'entity_inventory',
+                    type: 'ONE_TO_MANY',
+                    description: 'Warehouse holds inventory',
+                    label: 'stores'
+                },
+                {
+                    id: 'rel_warehouse_shipment',
+                    sourceEntityId: 'entity_warehouse',
+                    targetEntityId: 'entity_shipment',
+                    type: 'ONE_TO_MANY',
+                    description: 'Warehouse originates shipments',
+                    label: 'ships from'
+                },
+                {
+                    id: 'rel_supplier_order',
+                    sourceEntityId: 'entity_supplier',
+                    targetEntityId: 'entity_order',
+                    type: 'ONE_TO_MANY',
+                    description: 'Supplier receives purchase orders',
+                    label: 'receives'
+                },
+                {
+                    id: 'rel_product_order',
+                    sourceEntityId: 'entity_product',
+                    targetEntityId: 'entity_order',
+                    type: 'ONE_TO_MANY',
+                    description: 'Product is ordered via purchase orders',
+                    label: 'ordered in'
+                }
+            ];
+
             const newModel: SemanticModel = {
                 id: `model_${Date.now()}`,
-                name: modelName || 'New Semantic Model',
-                description: modelDescription,
-                entities: [],
-                relationships: [],
+                name: modelName || 'Supply Chain Analytics Model',
+                description: modelDescription || 'A comprehensive semantic model for supply chain operations including suppliers, warehouses, inventory, shipments, and purchase orders.',
+                domain: 'Supply Chain',
+                entities: supplyChainEntities,
+                relationships: supplyChainRelationships,
                 createdAt: new Date(),
                 updatedAt: new Date()
             };
