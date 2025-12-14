@@ -2439,22 +2439,37 @@ const GraphView: React.FC<{
             id: ent.id,
             type: 'ENTITY',
             label: ent.name,
-            x: 100 + idx * 350,
+            x: 100 + idx * 280,
             y: 100,
             data: ent
         }));
 
-        const tableNodesMap = new Map();
-        model.entities.forEach((ent, idx) => {
-            const tableBinding = ent.properties[0]?.binding?.split('.')[0];
-            if (tableBinding && !tableNodesMap.has(tableBinding)) {
-                tableNodesMap.set(tableBinding, {
-                    id: `tbl_${tableBinding}`,
-                    type: 'TABLE',
-                    label: tableBinding,
-                    x: 100 + idx * 350,
-                    y: 350,
-                    data: { name: tableBinding }
+        // Extract physical tables from entity-level bindings array
+        const tableNodesMap = new Map<string, { id: string; type: string; label: string; x: number; y: number; bindingType: string; data: { resource: string } }>();
+        let tableIndex = 0;
+        
+        model.entities.forEach((ent) => {
+            if (ent.bindings && ent.bindings.length > 0) {
+                ent.bindings.forEach((binding) => {
+                    const resource = binding.resource;
+                    if (resource && !tableNodesMap.has(resource)) {
+                        // Parse the resource to get a shorter display label
+                        const parts = resource.split('.');
+                        const displayLabel = parts.length >= 3 
+                            ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}`
+                            : resource;
+                        
+                        tableNodesMap.set(resource, {
+                            id: `physical_${resource.replace(/[^a-zA-Z0-9]/g, '_')}`,
+                            type: 'TABLE',
+                            label: displayLabel,
+                            x: 100 + tableIndex * 280,
+                            y: 380,
+                            bindingType: binding.type,
+                            data: { resource: resource }
+                        });
+                        tableIndex++;
+                    }
                 });
             }
         });
@@ -2462,19 +2477,24 @@ const GraphView: React.FC<{
         const tableNodes = Array.from(tableNodesMap.values());
         const nodes = [...entityNodes, ...tableNodes];
 
-        const edges = [];
+        const edges: Array<{ id: string; source: string; target: string; type: string; label?: string; title?: string }> = [];
         
-        // Entity -> Table edges
+        // Entity -> Physical Table binding edges
         model.entities.forEach(ent => {
-             const tableBinding = ent.properties[0]?.binding?.split('.')[0];
-             if (tableBinding) {
-                 edges.push({
-                     id: `bind_${ent.id}`,
-                     source: ent.id,
-                     target: `tbl_${tableBinding}`,
-                     type: 'BINDING'
-                 });
-             }
+            if (ent.bindings && ent.bindings.length > 0) {
+                ent.bindings.forEach((binding, bindIdx) => {
+                    const resource = binding.resource;
+                    if (resource) {
+                        const tableId = `physical_${resource.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                        edges.push({
+                            id: `bind_${ent.id}_${bindIdx}`,
+                            source: ent.id,
+                            target: tableId,
+                            type: 'BINDING'
+                        });
+                    }
+                });
+            }
         });
 
         // Entity -> Entity relationships
@@ -2501,7 +2521,7 @@ const GraphView: React.FC<{
                 backgroundSize: '20px 20px'
             }}
         >
-            <svg width="100%" height="100%" className="min-w-[1000px] min-h-[600px]">
+            <svg width="100%" height="100%" className="min-w-[2000px] min-h-[600px]">
                 <defs>
                     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
                         <polygon points="0 0, 10 3.5, 0 7" fill="#9CA3AF" />
@@ -2513,6 +2533,12 @@ const GraphView: React.FC<{
                         <polygon points="0 0, 10 3.5, 0 7" fill="#2563EB" />
                     </marker>
                 </defs>
+                
+                {/* Layer Labels */}
+                <text x="30" y="70" className="text-xs font-bold fill-blue-600 uppercase">Semantic Layer</text>
+                <text x="30" y="350" className="text-xs font-bold fill-indigo-600 uppercase">Physical Layer</text>
+                <line x1="30" y1="80" x2="200" y2="80" stroke="#3B82F6" strokeWidth="2" strokeDasharray="none" />
+                <line x1="30" y1="360" x2="200" y2="360" stroke="#6366F1" strokeWidth="2" strokeDasharray="none" />
 
                 {/* Edges */}
                 {layout.edges.map(edge => {
@@ -2658,11 +2684,11 @@ const GraphView: React.FC<{
                                             <TableIcon size={16} />
                                         </div>
                                     ) : (
-                                        <div className="p-1.5 rounded bg-gray-200 text-gray-600">
+                                        <div className="p-1.5 rounded bg-indigo-100 text-indigo-600">
                                             <Database size={16} />
                                         </div>
                                     )}
-                                    <div className="font-semibold text-gray-800 text-sm truncate" title={node.label}>
+                                    <div className={`font-semibold text-sm truncate ${node.type === 'TABLE' ? 'text-indigo-800 font-mono text-xs' : 'text-gray-800'}`} title={node.type === 'TABLE' ? (node.data as { resource: string }).resource : node.label}>
                                         {node.label}
                                     </div>
                                 </div>
@@ -2672,8 +2698,8 @@ const GraphView: React.FC<{
                                     </div>
                                 )}
                                 {node.type === 'TABLE' && (
-                                    <div className="text-[10px] text-gray-500 pl-9 uppercase font-mono">
-                                        Physical Table
+                                    <div className="text-[10px] text-gray-500 pl-9 font-mono truncate" title={(node.data as { resource: string }).resource}>
+                                        {(node as any).bindingType || 'BIGQUERY'}
                                     </div>
                                 )}
 
