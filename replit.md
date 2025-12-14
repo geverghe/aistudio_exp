@@ -25,6 +25,7 @@ The application follows a component-based architecture with clear separation of 
 
 - **App.tsx**: Root component managing global state (current view, semantic model) and orchestrating top-level navigation
 - **View Components**: Three main views (Dashboard, SemanticBuilder, AgentChat) controlled by ViewState enum
+- **Page Components**: Specialized full-page views within SemanticBuilder (ModelSettingsPage, DeploymentPage, FullPageEntityView)
 - **Layout Components**: TopBar and SideNav provide consistent navigation chrome
 - **Feature Components**: Specialized components for entity editing (WikiEditor, AspectSelector, GlossarySelector)
 

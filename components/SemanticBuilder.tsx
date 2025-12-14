@@ -86,8 +86,6 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
   const [sidebarTab, setSidebarTab] = useState<'dashboard' | 'configuration'>('dashboard');
   
   // Model Configuration State
-  const [isModelConfigExpanded, setIsModelConfigExpanded] = useState(false);
-  const [isEditingModelDesc, setIsEditingModelDesc] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showGitFileModal, setShowGitFileModal] = useState(false);
