@@ -4,7 +4,7 @@ import { SideNav } from './components/SideNav';
 import { Dashboard } from './components/Dashboard';
 import { SemanticBuilder } from './components/SemanticBuilder';
 import { AgentChat } from './components/AgentChat';
-import { ViewState, SemanticModel, SemanticModelCollection, EntityType } from './types';
+import { ViewState, SemanticModel, SemanticModelCollection, EntityType, PropertyType } from './types';
 
 // Mock initial data based on the PDF examples (Revenue Domain)
 const INITIAL_MODELS: SemanticModelCollection = {
@@ -70,6 +70,149 @@ const INITIAL_MODELS: SemanticModelCollection = {
       updatedAt: new Date('2024-10-15'),
       entities: [],
       relationships: []
+    },
+    {
+      id: 'model_nyc_taxi',
+      name: 'NYC Taxi Analytics',
+      description: 'Semantic model for NYC Taxi & Limousine Commission trip data analysis, fare prediction, and transportation insights',
+      domain: 'Transportation',
+      createdAt: new Date('2024-12-14'),
+      updatedAt: new Date('2024-12-14'),
+      entities: [
+        {
+          id: 'ent_trip',
+          name: 'Trip',
+          type: EntityType.FACT,
+          description: 'Individual taxi trip records capturing ride details, fares, and passenger information',
+          properties: [
+            { id: 'trip_1', name: 'Trip ID', dataType: 'STRING', description: 'Unique identifier for the trip', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.trip_id', isUniqueKey: true, propertyType: PropertyType.DIMENSION },
+            { id: 'trip_2', name: 'Vendor ID', dataType: 'STRING', description: 'Code indicating the provider associated with the trip record', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.vendor_id', propertyType: PropertyType.DIMENSION },
+            { id: 'trip_3', name: 'Pickup Datetime', dataType: 'TIMESTAMP', description: 'Date and time when the meter was engaged', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.pickup_datetime', propertyType: PropertyType.DIMENSION },
+            { id: 'trip_4', name: 'Dropoff Datetime', dataType: 'TIMESTAMP', description: 'Date and time when the meter was disengaged', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.dropoff_datetime', propertyType: PropertyType.DIMENSION },
+            { id: 'trip_5', name: 'Passenger Count', dataType: 'INTEGER', description: 'Number of passengers in the vehicle', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.passenger_count', propertyType: PropertyType.MEASURE },
+            { id: 'trip_6', name: 'Trip Distance', dataType: 'FLOAT', description: 'Elapsed trip distance in miles', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.trip_distance', propertyType: PropertyType.MEASURE },
+            { id: 'trip_7', name: 'Pickup Location ID', dataType: 'INTEGER', description: 'TLC Taxi Zone where the meter was engaged', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.PULocationID', propertyType: PropertyType.DIMENSION },
+            { id: 'trip_8', name: 'Dropoff Location ID', dataType: 'INTEGER', description: 'TLC Taxi Zone where the meter was disengaged', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.DOLocationID', propertyType: PropertyType.DIMENSION },
+            { id: 'trip_9', name: 'Rate Code ID', dataType: 'INTEGER', description: 'Final rate code in effect at end of trip', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.rate_code_id', propertyType: PropertyType.DIMENSION },
+            { id: 'trip_10', name: 'Payment Type', dataType: 'STRING', description: 'How the passenger paid for the trip', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.payment_type', propertyType: PropertyType.DIMENSION },
+            { id: 'trip_11', name: 'Fare Amount', dataType: 'FLOAT', description: 'Time-and-distance fare calculated by the meter', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.fare_amount', propertyType: PropertyType.MEASURE },
+            { id: 'trip_12', name: 'Tip Amount', dataType: 'FLOAT', description: 'Tip amount (automatically populated for credit card payments)', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.tip_amount', propertyType: PropertyType.MEASURE },
+            { id: 'trip_13', name: 'Tolls Amount', dataType: 'FLOAT', description: 'Total amount of all tolls paid in trip', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.tolls_amount', propertyType: PropertyType.MEASURE },
+            { id: 'trip_14', name: 'Total Amount', dataType: 'FLOAT', description: 'Total amount charged to passengers (excludes cash tips)', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.total_amount', propertyType: PropertyType.MEASURE },
+            { id: 'trip_15', name: 'Congestion Surcharge', dataType: 'FLOAT', description: 'CBD congestion fee for trips in Manhattan', binding: 'bigquery-public-data.new_york.tlc_yellow_trips.cbd_congestion_fee', propertyType: PropertyType.MEASURE }
+          ]
+        },
+        {
+          id: 'ent_pickup_zone',
+          name: 'Pickup Zone',
+          type: EntityType.DIMENSION,
+          description: 'Geographic zones where taxi pickups occur, based on TLC taxi zone boundaries',
+          properties: [
+            { id: 'pz_1', name: 'Zone ID', dataType: 'INTEGER', description: 'Unique identifier for the taxi zone', binding: 'bigquery-public-data.new_york_taxi_trips.taxi_zone_geom.zone_id', isUniqueKey: true, propertyType: PropertyType.DIMENSION },
+            { id: 'pz_2', name: 'Zone Name', dataType: 'STRING', description: 'Name of the taxi zone', binding: 'bigquery-public-data.new_york_taxi_trips.taxi_zone_geom.zone_name', propertyType: PropertyType.DIMENSION },
+            { id: 'pz_3', name: 'Borough', dataType: 'STRING', description: 'NYC borough (Manhattan, Brooklyn, Queens, Bronx, Staten Island)', binding: 'bigquery-public-data.new_york_taxi_trips.taxi_zone_geom.borough', propertyType: PropertyType.DIMENSION },
+            { id: 'pz_4', name: 'Zone Geometry', dataType: 'GEOGRAPHY', description: 'Spatial polygon boundary of the zone', binding: 'bigquery-public-data.new_york_taxi_trips.taxi_zone_geom.zone_geom', propertyType: PropertyType.OTHER }
+          ]
+        },
+        {
+          id: 'ent_dropoff_zone',
+          name: 'Dropoff Zone',
+          type: EntityType.DIMENSION,
+          description: 'Geographic zones where taxi dropoffs occur, based on TLC taxi zone boundaries',
+          properties: [
+            { id: 'dz_1', name: 'Zone ID', dataType: 'INTEGER', description: 'Unique identifier for the taxi zone', binding: 'bigquery-public-data.new_york_taxi_trips.taxi_zone_geom.zone_id', isUniqueKey: true, propertyType: PropertyType.DIMENSION },
+            { id: 'dz_2', name: 'Zone Name', dataType: 'STRING', description: 'Name of the taxi zone', binding: 'bigquery-public-data.new_york_taxi_trips.taxi_zone_geom.zone_name', propertyType: PropertyType.DIMENSION },
+            { id: 'dz_3', name: 'Borough', dataType: 'STRING', description: 'NYC borough (Manhattan, Brooklyn, Queens, Bronx, Staten Island)', binding: 'bigquery-public-data.new_york_taxi_trips.taxi_zone_geom.borough', propertyType: PropertyType.DIMENSION }
+          ]
+        },
+        {
+          id: 'ent_vendor',
+          name: 'Vendor',
+          type: EntityType.DIMENSION,
+          description: 'Taxi technology providers that supply trip data to TLC',
+          properties: [
+            { id: 'v_1', name: 'Vendor ID', dataType: 'STRING', description: 'Unique code for the vendor', isUniqueKey: true, propertyType: PropertyType.DIMENSION },
+            { id: 'v_2', name: 'Vendor Name', dataType: 'STRING', description: 'Name of the technology provider (e.g., Creative Mobile Technologies, VeriFone)', propertyType: PropertyType.DIMENSION }
+          ]
+        },
+        {
+          id: 'ent_payment_type',
+          name: 'Payment Type',
+          type: EntityType.DIMENSION,
+          description: 'Methods of payment accepted for taxi trips',
+          properties: [
+            { id: 'pt_1', name: 'Payment Code', dataType: 'STRING', description: 'Code representing payment method', isUniqueKey: true, propertyType: PropertyType.DIMENSION },
+            { id: 'pt_2', name: 'Payment Method', dataType: 'STRING', description: 'Description of payment type (Credit Card, Cash, No Charge, Dispute, Unknown)', propertyType: PropertyType.DIMENSION }
+          ]
+        },
+        {
+          id: 'ent_rate_code',
+          name: 'Rate Code',
+          type: EntityType.DIMENSION,
+          description: 'Rate codes determining how the fare is calculated',
+          properties: [
+            { id: 'rc_1', name: 'Rate Code ID', dataType: 'INTEGER', description: 'Numeric code for the rate type', isUniqueKey: true, propertyType: PropertyType.DIMENSION },
+            { id: 'rc_2', name: 'Rate Description', dataType: 'STRING', description: 'Description of rate (Standard, JFK, Newark, Nassau/Westchester, Negotiated, Group Ride)', propertyType: PropertyType.DIMENSION }
+          ]
+        }
+      ],
+      relationships: [
+        {
+          id: 'rel_trip_pickup',
+          sourceEntityId: 'ent_pickup_zone',
+          sourcePropertyId: 'pz_1',
+          targetEntityId: 'ent_trip',
+          targetPropertyId: 'trip_7',
+          type: 'ONE_TO_MANY',
+          title: 'Pickup Location',
+          label: 'picked_up_at',
+          description: 'Links pickup zone to trips that originated there'
+        },
+        {
+          id: 'rel_trip_dropoff',
+          sourceEntityId: 'ent_dropoff_zone',
+          sourcePropertyId: 'dz_1',
+          targetEntityId: 'ent_trip',
+          targetPropertyId: 'trip_8',
+          type: 'ONE_TO_MANY',
+          title: 'Dropoff Location',
+          label: 'dropped_off_at',
+          description: 'Links dropoff zone to trips that ended there'
+        },
+        {
+          id: 'rel_trip_vendor',
+          sourceEntityId: 'ent_vendor',
+          sourcePropertyId: 'v_1',
+          targetEntityId: 'ent_trip',
+          targetPropertyId: 'trip_2',
+          type: 'ONE_TO_MANY',
+          title: 'Serviced By',
+          label: 'serviced_by',
+          description: 'Links vendor to trips they processed'
+        },
+        {
+          id: 'rel_trip_payment',
+          sourceEntityId: 'ent_payment_type',
+          sourcePropertyId: 'pt_1',
+          targetEntityId: 'ent_trip',
+          targetPropertyId: 'trip_10',
+          type: 'ONE_TO_MANY',
+          title: 'Paid With',
+          label: 'paid_with',
+          description: 'Links payment method to trips using it'
+        },
+        {
+          id: 'rel_trip_rate',
+          sourceEntityId: 'ent_rate_code',
+          sourcePropertyId: 'rc_1',
+          targetEntityId: 'ent_trip',
+          targetPropertyId: 'trip_9',
+          type: 'ONE_TO_MANY',
+          title: 'Rate Applied',
+          label: 'charged_at',
+          description: 'Links rate code to trips that used it'
+        }
+      ]
     }
   ]
 };
