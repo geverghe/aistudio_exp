@@ -92,6 +92,9 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   
+  // About Model Section State
+  const [isAboutExpanded, setIsAboutExpanded] = useState(true);
+  
   // Talk to Your Data Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{id: string; role: 'user' | 'model'; text: string}>>([]);
@@ -557,6 +560,83 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
              )}
          </div>
          <div className="flex-1 overflow-y-auto p-2">
+            {/* About This Model - Read-only collapsible section */}
+            <div className="mb-3">
+              <button
+                onClick={() => setIsAboutExpanded(!isAboutExpanded)}
+                className="w-full flex items-center justify-between px-2 py-2 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <ChevronRight size={14} className={`text-gray-400 transition-transform ${isAboutExpanded ? 'rotate-90' : ''}`} />
+                  <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">About This Model</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {(model.aspects?.length || 0) > 0 && (
+                    <span className="w-2 h-2 bg-green-400 rounded-full" title="Has aspects"></span>
+                  )}
+                  {(model.glossaryTerms?.length || 0) > 0 && (
+                    <span className="w-2 h-2 bg-purple-400 rounded-full" title="Has glossary terms"></span>
+                  )}
+                </div>
+              </button>
+              
+              {isAboutExpanded && (
+                <div className="mt-2 mx-2 space-y-3">
+                  {/* Description */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText size={12} className="text-gray-400" />
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase">Description</span>
+                    </div>
+                    {model.description ? (
+                      <p className="text-xs text-gray-600 leading-relaxed">{model.description}</p>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">No description. Add one in Model Settings.</p>
+                    )}
+                  </div>
+                  
+                  {/* Aspects */}
+                  {(model.aspects?.length || 0) > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Tag size={12} className="text-green-500" />
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase">Aspects</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {model.aspects?.map((aspect, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-[10px] rounded-full border border-green-200">
+                            {aspect.type}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Glossary Terms */}
+                  {(model.glossaryTerms?.length || 0) > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BookOpen size={12} className="text-purple-500" />
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase">Glossary Terms</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {model.glossaryTerms?.map((term, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 text-[10px] rounded-full border border-purple-200">
+                            {term.term}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Empty state for aspects and glossary */}
+                  {(!model.aspects || model.aspects.length === 0) && (!model.glossaryTerms || model.glossaryTerms.length === 0) && (
+                    <p className="text-[10px] text-gray-400 italic px-1">No aspects or glossary terms. Add them in Model Settings.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            
             <div className="mb-4">
                 <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">Business Entities</div>
                 {filteredEntities.length === 0 && searchQuery && (
