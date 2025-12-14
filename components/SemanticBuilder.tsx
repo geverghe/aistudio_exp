@@ -2437,6 +2437,12 @@ const GraphView: React.FC<{
     const [viewLevel, setViewLevel] = useState<'semantic' | 'full'>('semantic');
     const [zoomScale, setZoomScale] = useState(0.85);
     
+    // Drag state for movable nodes
+    const [nodePositions, setNodePositions] = useState<Record<string, {x: number, y: number}>>({});
+    const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+    const [dragOffset, setDragOffset] = useState<{x: number, y: number}>({x: 0, y: 0});
+    const svgRef = useRef<SVGSVGElement>(null);
+    
     const zoomIn = () => setZoomScale(prev => Math.min(prev + 0.15, 2));
     const zoomOut = () => setZoomScale(prev => Math.max(prev - 0.15, 0.4));
     const resetZoom = () => setZoomScale(0.85);
@@ -2523,17 +2529,67 @@ const GraphView: React.FC<{
 
         return { nodes, edges, tableNodes };
     }, [model, viewLevel]);
+    
+    // Get node position (custom if dragged, otherwise from layout)
+    const getNodePosition = (nodeId: string, defaultX: number, defaultY: number) => {
+        if (nodePositions[nodeId]) {
+            return nodePositions[nodeId];
+        }
+        return { x: defaultX, y: defaultY };
+    };
+    
+    // Handle mouse down on a node to start dragging
+    const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string, nodeX: number, nodeY: number) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const pos = getNodePosition(nodeId, nodeX, nodeY);
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        
+        const mouseX = (e.clientX - rect.left) / zoomScale;
+        const mouseY = (e.clientY - rect.top) / zoomScale;
+        
+        setDraggingNodeId(nodeId);
+        setDragOffset({ x: mouseX - pos.x, y: mouseY - pos.y });
+    };
+    
+    // Handle mouse move for dragging
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!draggingNodeId) return;
+        
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        
+        const mouseX = (e.clientX - rect.left) / zoomScale;
+        const mouseY = (e.clientY - rect.top) / zoomScale;
+        
+        setNodePositions(prev => ({
+            ...prev,
+            [draggingNodeId]: {
+                x: mouseX - dragOffset.x,
+                y: mouseY - dragOffset.y
+            }
+        }));
+    };
+    
+    // Handle mouse up to stop dragging
+    const handleMouseUp = () => {
+        setDraggingNodeId(null);
+    };
 
     return (
         <div 
             className="w-full h-full overflow-auto bg-[#f8f9fa]"
             onClick={() => onSelect(null)}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
             style={{
                 backgroundImage: 'radial-gradient(#e5e7eb 1px, transparent 1px)',
                 backgroundSize: '20px 20px'
             }}
         >
-            <svg width="100%" height="100%" style={{ minWidth: '100%', minHeight: '100%' }}>
+            <svg ref={svgRef} width="100%" height="100%" style={{ minWidth: '100%', minHeight: '100%' }}>
                 <defs>
                     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
                         <polygon points="0 0, 10 3.5, 0 7" fill="#9CA3AF" />
@@ -2553,9 +2609,12 @@ const GraphView: React.FC<{
 
                 {/* Edges */}
                 {layout.edges.map(edge => {
-                    const source = layout.nodes.find(n => n.id === edge.source);
-                    const target = layout.nodes.find(n => n.id === edge.target);
-                    if (!source || !target) return null;
+                    const sourceNode = layout.nodes.find(n => n.id === edge.source);
+                    const targetNode = layout.nodes.find(n => n.id === edge.target);
+                    if (!sourceNode || !targetNode) return null;
+                    
+                    const source = getNodePosition(sourceNode.id, sourceNode.x, sourceNode.y);
+                    const target = getNodePosition(targetNode.id, targetNode.x, targetNode.y);
                     
                     const isSelected = selection?.type === 'RELATIONSHIP' && selection.id === edge.id;
 
@@ -2666,28 +2725,36 @@ const GraphView: React.FC<{
                 {/* Nodes */}
                 {layout.nodes.map(node => {
                     const isSelected = selection?.id === node.id;
+                    const isDragging = draggingNodeId === node.id;
+                    const pos = getNodePosition(node.id, node.x, node.y);
                     return (
                         <foreignObject 
                             key={node.id} 
-                            x={node.x} 
-                            y={node.y} 
+                            x={pos.x} 
+                            y={pos.y} 
                             width="200" 
                             height="80"
                             className="overflow-visible"
+                            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                         >
                             <div 
+                                onMouseDown={(e) => handleNodeMouseDown(e, node.id, node.x, node.y)}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    // @ts-ignore
-                                    onSelect({ type: node.type, id: node.id });
+                                    if (!isDragging) {
+                                        // @ts-ignore
+                                        onSelect({ type: node.type, id: node.id });
+                                    }
                                 }}
                                 className={`
-                                    w-[200px] rounded-lg shadow-sm border-2 p-3 cursor-pointer transition-all hover:shadow-md
+                                    w-[200px] rounded-lg shadow-sm border-2 p-3 transition-all hover:shadow-md select-none
                                     flex flex-col justify-center h-full relative
+                                    ${isDragging ? 'shadow-lg ring-2 ring-blue-300' : ''}
                                     ${node.type === 'ENTITY' 
                                         ? (isSelected ? 'bg-sky-50 border-sky-500 ring-2 ring-sky-200' : 'bg-white border-sky-300') 
                                         : (isSelected ? 'bg-purple-50 border-purple-500 ring-2 ring-purple-200' : 'bg-purple-50 border-purple-300')}
                                 `}
+                                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     {node.type === 'ENTITY' ? (
@@ -2718,7 +2785,6 @@ const GraphView: React.FC<{
                                 {node.type === 'ENTITY' && (
                                     <>
                                         <div className="absolute -right-1 top-1/2 w-2 h-2 bg-sky-400 rounded-full border border-white transform -translate-y-1/2" />
-                                        <div className="absolute -left-1 top-1/2 w-2 h-2 bg-sky-400 rounded-full border border-white transform -translate-y-1/2" />
                                         <div className="absolute bottom-[-4px] left-1/2 w-2 h-2 bg-purple-300 rounded-full border border-white transform -translate-x-1/2" />
                                     </>
                                 )}
