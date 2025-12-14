@@ -2435,6 +2435,11 @@ const GraphView: React.FC<{
     
     // Zoom state: 'semantic' = only semantic layer, 'full' = both layers
     const [viewLevel, setViewLevel] = useState<'semantic' | 'full'>('semantic');
+    const [zoomScale, setZoomScale] = useState(0.85);
+    
+    const zoomIn = () => setZoomScale(prev => Math.min(prev + 0.15, 2));
+    const zoomOut = () => setZoomScale(prev => Math.max(prev - 0.15, 0.4));
+    const resetZoom = () => setZoomScale(0.85);
     
     // Calculate layout
     const layout = useMemo(() => {
@@ -2528,28 +2533,34 @@ const GraphView: React.FC<{
                 backgroundSize: '20px 20px'
             }}
         >
-            <svg width="100%" height="100%" className="min-w-[2000px] min-h-[600px]">
+            <svg width="100%" height="100%" style={{ minWidth: '100%', minHeight: '100%' }}>
                 <defs>
                     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
                         <polygon points="0 0, 10 3.5, 0 7" fill="#9CA3AF" />
                     </marker>
                     <marker id="arrowhead-rel" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
-                        <polygon points="0 0, 10 3.5, 0 7" fill="#3B82F6" />
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#0EA5E9" />
                     </marker>
                     <marker id="arrowhead-rel-selected" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
-                        <polygon points="0 0, 10 3.5, 0 7" fill="#2563EB" />
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#0284C7" />
+                    </marker>
+                    <marker id="arrowhead-binding" markerWidth="8" markerHeight="6" refX="20" refY="3" orient="auto">
+                        <polygon points="0 0, 8 3, 0 6" fill="#A855F7" />
                     </marker>
                 </defs>
                 
+                <g transform={`scale(${zoomScale})`}>
                 {/* Layer Labels */}
-                <text x="30" y="70" className="text-xs font-bold fill-blue-600 uppercase">Semantic Layer</text>
-                <line x1="30" y1="80" x2="200" y2="80" stroke="#3B82F6" strokeWidth="2" />
+                <g>
+                    <rect x="20" y="50" width="160" height="28" rx="4" fill="#E0F2FE" stroke="#0EA5E9" strokeWidth="1" />
+                    <text x="100" y="68" textAnchor="middle" className="text-xs font-bold fill-sky-700 uppercase">Semantic Layer</text>
+                </g>
                 
                 {viewLevel === 'full' && (
-                    <>
-                        <text x="30" y="350" className="text-xs font-bold fill-indigo-600 uppercase">Physical Layer</text>
-                        <line x1="30" y1="360" x2="200" y2="360" stroke="#6366F1" strokeWidth="2" />
-                    </>
+                    <g>
+                        <rect x="20" y="330" width="160" height="28" rx="4" fill="#F3E8FF" stroke="#A855F7" strokeWidth="1" />
+                        <text x="100" y="348" textAnchor="middle" className="text-xs font-bold fill-purple-700 uppercase">Physical Layer</text>
+                    </g>
                 )}
 
                 {/* Edges */}
@@ -2609,11 +2620,11 @@ const GraphView: React.FC<{
                             {/* Visible Path */}
                             <path 
                                 d={d} 
-                                stroke={edge.type === 'RELATIONSHIP' ? (isSelected ? '#2563EB' : '#3B82F6') : '#D1D5DB'} 
+                                stroke={edge.type === 'RELATIONSHIP' ? (isSelected ? '#0284C7' : '#0EA5E9') : '#A855F7'} 
                                 strokeWidth={edge.type === 'RELATIONSHIP' ? (isSelected ? 3 : 2) : 1.5}
                                 fill="none"
-                                strokeDasharray={edge.type === 'BINDING' ? '5,5' : 'none'}
-                                markerEnd={edge.type === 'RELATIONSHIP' ? (isSelected ? 'url(#arrowhead-rel-selected)' : 'url(#arrowhead-rel)') : 'none'}
+                                strokeDasharray={edge.type === 'BINDING' ? '6,4' : 'none'}
+                                markerEnd={edge.type === 'RELATIONSHIP' ? (isSelected ? 'url(#arrowhead-rel-selected)' : 'url(#arrowhead-rel)') : 'url(#arrowhead-binding)'}
                             />
                             
                             {/* Relationship Badge & Label */}
@@ -2683,24 +2694,24 @@ const GraphView: React.FC<{
                                     onSelect({ type: node.type, id: node.id });
                                 }}
                                 className={`
-                                    w-[200px] rounded-lg shadow-sm border p-3 cursor-pointer transition-all hover:shadow-md
+                                    w-[200px] rounded-lg shadow-sm border-2 p-3 cursor-pointer transition-all hover:shadow-md
                                     flex flex-col justify-center h-full relative
                                     ${node.type === 'ENTITY' 
-                                        ? (isSelected ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200' : 'bg-white border-blue-200') 
-                                        : (isSelected ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200' : 'bg-gray-100 border-gray-300')}
+                                        ? (isSelected ? 'bg-sky-50 border-sky-500 ring-2 ring-sky-200' : 'bg-white border-sky-300') 
+                                        : (isSelected ? 'bg-purple-50 border-purple-500 ring-2 ring-purple-200' : 'bg-purple-50 border-purple-300')}
                                 `}
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     {node.type === 'ENTITY' ? (
-                                        <div className="p-1.5 rounded bg-blue-100 text-blue-600">
+                                        <div className="p-1.5 rounded bg-sky-100 text-sky-600">
                                             <TableIcon size={16} />
                                         </div>
                                     ) : (
-                                        <div className="p-1.5 rounded bg-indigo-100 text-indigo-600">
+                                        <div className="p-1.5 rounded bg-purple-100 text-purple-600">
                                             <Database size={16} />
                                         </div>
                                     )}
-                                    <div className={`font-semibold text-sm truncate ${node.type === 'TABLE' ? 'text-indigo-800 font-mono text-xs' : 'text-gray-800'}`} title={node.type === 'TABLE' ? (node.data as { resource: string }).resource : node.label}>
+                                    <div className={`font-semibold text-sm truncate ${node.type === 'TABLE' ? 'text-purple-800 font-mono text-xs' : 'text-gray-800'}`} title={node.type === 'TABLE' ? (node.data as { resource: string }).resource : node.label}>
                                         {node.label}
                                     </div>
                                 </div>
@@ -2718,22 +2729,49 @@ const GraphView: React.FC<{
                                 {/* Connection Points */}
                                 {node.type === 'ENTITY' && (
                                     <>
-                                        <div className="absolute -right-1 top-1/2 w-2 h-2 bg-blue-400 rounded-full border border-white transform -translate-y-1/2" />
-                                        <div className="absolute -left-1 top-1/2 w-2 h-2 bg-blue-400 rounded-full border border-white transform -translate-y-1/2" />
-                                        <div className="absolute bottom-[-4px] left-1/2 w-2 h-2 bg-gray-300 rounded-full border border-white transform -translate-x-1/2" />
+                                        <div className="absolute -right-1 top-1/2 w-2 h-2 bg-sky-400 rounded-full border border-white transform -translate-y-1/2" />
+                                        <div className="absolute -left-1 top-1/2 w-2 h-2 bg-sky-400 rounded-full border border-white transform -translate-y-1/2" />
+                                        <div className="absolute bottom-[-4px] left-1/2 w-2 h-2 bg-purple-300 rounded-full border border-white transform -translate-x-1/2" />
                                     </>
                                 )}
                                 {node.type === 'TABLE' && (
-                                    <div className="absolute top-[-4px] left-1/2 w-2 h-2 bg-gray-300 rounded-full border border-white transform -translate-x-1/2" />
+                                    <div className="absolute top-[-4px] left-1/2 w-2 h-2 bg-purple-400 rounded-full border border-white transform -translate-x-1/2" />
                                 )}
                             </div>
                         </foreignObject>
                     );
                 })}
+                </g>
             </svg>
             
-            {/* Zoom Controls */}
-            <div className="absolute top-4 right-4 flex flex-col gap-2">
+            {/* Controls - Bottom Left */}
+            <div className="absolute bottom-4 left-4 flex items-center gap-3">
+                {/* Zoom Controls */}
+                <div className="flex items-center bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); zoomOut(); }}
+                        className="px-3 py-2 hover:bg-gray-100 text-gray-600 font-bold text-lg border-r border-gray-200"
+                        title="Zoom Out"
+                    >
+                        −
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); resetZoom(); }}
+                        className="px-3 py-2 hover:bg-gray-100 text-gray-600 text-xs font-medium min-w-[50px]"
+                        title="Reset Zoom"
+                    >
+                        {Math.round(zoomScale * 100)}%
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); zoomIn(); }}
+                        className="px-3 py-2 hover:bg-gray-100 text-gray-600 font-bold text-lg border-l border-gray-200"
+                        title="Zoom In"
+                    >
+                        +
+                    </button>
+                </div>
+                
+                {/* Layer Toggle */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
@@ -2741,20 +2779,20 @@ const GraphView: React.FC<{
                     }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-md border transition-all ${
                         viewLevel === 'full' 
-                            ? 'bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700' 
+                            ? 'bg-purple-600 text-white border-purple-700 hover:bg-purple-700' 
                             : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                     }`}
                 >
                     <Layers size={16} />
                     <span className="text-sm font-medium">
-                        {viewLevel === 'full' ? 'Hide Physical Layer' : 'Show Physical Layer'}
+                        {viewLevel === 'full' ? 'Hide Physical' : 'Show Physical'}
                     </span>
                 </button>
-            </div>
-            
-            {/* Stats */}
-            <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur border border-gray-200 p-2 rounded text-xs text-gray-500 shadow-sm pointer-events-none">
-                {viewLevel === 'semantic' ? 'Semantic Layer' : 'Full View'} • {layout.nodes.length} Nodes • {layout.edges.length} Connections
+                
+                {/* Stats */}
+                <div className="bg-white/90 backdrop-blur border border-gray-200 px-3 py-2 rounded-lg text-xs text-gray-500 shadow-sm">
+                    {layout.nodes.length} Nodes • {layout.edges.length} Connections
+                </div>
             </div>
         </div>
     );
