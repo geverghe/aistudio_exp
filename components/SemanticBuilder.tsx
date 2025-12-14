@@ -709,35 +709,6 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
           );
       })()}
 
-      {/* Model Description Editor Modal */}
-      {isEditingModelDesc && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-[700px] max-h-[80vh] flex flex-col">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">Edit Model Description</h3>
-              <button onClick={() => setIsEditingModelDesc(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-4 flex-1 overflow-auto">
-              <WikiEditor
-                initialDescription={model.description || ''}
-                history={model.descriptionHistory || []}
-                onSave={(content, history) => {
-                  setModel(prev => ({
-                    ...prev,
-                    description: content,
-                    descriptionHistory: history
-                  }));
-                  setIsEditingModelDesc(false);
-                }}
-                onCancel={() => setIsEditingModelDesc(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete Model Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
