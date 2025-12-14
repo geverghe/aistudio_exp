@@ -2550,18 +2550,6 @@ const GraphView: React.FC<{
                 </defs>
                 
                 <g transform={`scale(${zoomScale})`}>
-                {/* Layer Labels */}
-                <g>
-                    <rect x="20" y="50" width="160" height="28" rx="4" fill="#E0F2FE" stroke="#0EA5E9" strokeWidth="1" />
-                    <text x="100" y="68" textAnchor="middle" className="text-xs font-bold fill-sky-700 uppercase">Semantic Layer</text>
-                </g>
-                
-                {viewLevel === 'full' && (
-                    <g>
-                        <rect x="20" y="330" width="160" height="28" rx="4" fill="#F3E8FF" stroke="#A855F7" strokeWidth="1" />
-                        <text x="100" y="348" textAnchor="middle" className="text-xs font-bold fill-purple-700 uppercase">Physical Layer</text>
-                    </g>
-                )}
 
                 {/* Edges */}
                 {layout.edges.map(edge => {
@@ -2744,8 +2732,8 @@ const GraphView: React.FC<{
                 </g>
             </svg>
             
-            {/* Controls - Bottom Left */}
-            <div className="absolute bottom-4 left-4 flex items-center gap-3">
+            {/* Controls - Top Left */}
+            <div className="absolute top-4 left-4 flex items-center gap-3">
                 {/* Zoom Controls */}
                 <div className="flex items-center bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
                     <button
