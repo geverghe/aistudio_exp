@@ -502,73 +502,6 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
              )}
          </div>
          <div className="flex-1 overflow-y-auto p-2">
-            {/* Definition Section */}
-            <div className="mb-3">
-              <div 
-                onClick={() => setIsModelConfigExpanded(!isModelConfigExpanded)}
-                className="flex items-center justify-between px-2 py-2 rounded-md cursor-pointer hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <ChevronRight size={14} className={`text-gray-400 transition-transform ${isModelConfigExpanded ? 'rotate-90' : ''}`} />
-                  <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">Definition</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {(model.aspects?.length || 0) > 0 && (
-                    <span className="w-2 h-2 bg-green-400 rounded-full" title="Has aspects"></span>
-                  )}
-                  {(model.glossaryTerms?.length || 0) > 0 && (
-                    <span className="w-2 h-2 bg-purple-400 rounded-full" title="Has glossary terms"></span>
-                  )}
-                </div>
-              </div>
-              
-              {isModelConfigExpanded && (
-                <div className="ml-4 mt-2 space-y-3 border-l-2 border-gray-100 pl-3">
-                  {/* Git Reference */}
-                  <div className="bg-blue-50 rounded-lg p-2 flex items-center gap-2">
-                    <FileText size={12} className="text-blue-500" />
-                    <span className="text-[10px] text-blue-700 font-mono">{model.gitFile || `models/${model.id}.yaml`}</span>
-                  </div>
-                  
-                  {/* Model Description */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-600">Description</span>
-                      <button
-                        onClick={() => setIsEditingModelDesc(true)}
-                        className="text-xs text-blue-600 hover:text-blue-700"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                    {model.description ? (
-                      <p className="text-xs text-gray-600 line-clamp-3">{model.description}</p>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic">No description yet</p>
-                    )}
-                  </div>
-                  
-                  {/* Model Aspects - Inline Editor */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <AspectSelector
-                      aspects={model.aspects || []}
-                      onChange={(aspects) => setModel(prev => ({ ...prev, aspects }))}
-                      label="Aspects"
-                    />
-                  </div>
-                  
-                  {/* Model Glossary Terms - Inline Editor */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <GlossarySelector
-                      selectedTerms={model.glossaryTerms || []}
-                      onChange={(glossaryTerms) => setModel(prev => ({ ...prev, glossaryTerms }))}
-                      label="Glossary Terms"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-            
             <div className="mb-4">
                 <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">Business Entities</div>
                 {filteredEntities.length === 0 && searchQuery && (
@@ -2873,6 +2806,94 @@ const GraphView: React.FC<{
             </div>
         </div>
     );
+};
+
+// Model Settings Page Component
+const ModelSettingsPage: React.FC<{ 
+  model: SemanticModel; 
+  setModel: (updater: SemanticModel | ((prev: SemanticModel) => SemanticModel)) => void;
+  onBack: () => void 
+}> = ({ model, setModel, onBack }) => {
+  return (
+    <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100 p-8 overflow-auto">
+      <div className="max-w-3xl mx-auto">
+        {/* Header with back button */}
+        <div className="flex items-center gap-4 mb-8">
+          <button 
+            onClick={onBack} 
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
+          >
+            <ArrowLeft size={18} />
+            Back to Model
+          </button>
+        </div>
+        
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-800 rounded-lg flex items-center justify-center shadow-sm">
+            <Settings2 size={24} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Model Settings</h1>
+            <p className="text-sm text-gray-500">{model.name}</p>
+          </div>
+        </div>
+
+        {/* Git File Reference */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText size={18} className="text-blue-500" />
+            <h2 className="text-lg font-semibold text-gray-800">Source File</h2>
+          </div>
+          <div className="bg-blue-50 rounded-lg p-3 flex items-center gap-2">
+            <GitCommit size={14} className="text-blue-600" />
+            <span className="text-sm text-blue-700 font-mono">{model.gitFile || `models/${model.id}.yaml`}</span>
+          </div>
+        </div>
+
+        {/* Description Section */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Edit3 size={18} className="text-gray-500" />
+            <h2 className="text-lg font-semibold text-gray-800">Description</h2>
+          </div>
+          <textarea
+            value={model.description || ''}
+            onChange={(e) => setModel(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="Describe the purpose and scope of this semantic model..."
+            className="w-full h-32 px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          />
+        </div>
+
+        {/* Aspects Section */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Tag size={18} className="text-green-500" />
+            <h2 className="text-lg font-semibold text-gray-800">Aspects</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">Add metadata aspects to categorize and govern this model.</p>
+          <AspectSelector
+            aspects={model.aspects || []}
+            onChange={(aspects) => setModel(prev => ({ ...prev, aspects }))}
+            label=""
+          />
+        </div>
+
+        {/* Glossary Terms Section */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <BookOpen size={18} className="text-purple-500" />
+            <h2 className="text-lg font-semibold text-gray-800">Glossary Terms</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">Link business terms from your glossary to this model.</p>
+          <GlossarySelector
+            selectedTerms={model.glossaryTerms || []}
+            onChange={(glossaryTerms) => setModel(prev => ({ ...prev, glossaryTerms }))}
+            label=""
+          />
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Deployment Page Component
