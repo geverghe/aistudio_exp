@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory, PropertyType } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download, Key, Edit3, MessageSquare, Send, Bot, User, Sparkles } from 'lucide-react';
+import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory, PropertyType, EntityUpdateSuggestion, SuggestionStatus, SuggestionSource, SuggestionType } from '../types';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download, Key, Edit3, MessageSquare, Send, Bot, User, Sparkles, Bell, RefreshCw } from 'lucide-react';
 import { suggestEntitiesFromDescription, generateAssistantResponse } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
 import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
 import { GlossarySelector } from './GlossarySelector';
+import { SuggestionPanel } from './SuggestionPanel';
 
 // Mock Schema for BigQuery Tables to power the dropdowns
 const MOCK_BQ_SCHEMA: Record<string, Array<{ name: string, type: string }>> = {
@@ -101,6 +102,93 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
   const [chatInput, setChatInput] = useState('');
   const [isChatThinking, setIsChatThinking] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  // Suggestion System State
+  const [suggestions, setSuggestions] = useState<EntityUpdateSuggestion[]>([]);
+  const [isSuggestionPanelOpen, setIsSuggestionPanelOpen] = useState(false);
+
+  // Suggestion handlers
+  const addSuggestion = (suggestion: Omit<EntityUpdateSuggestion, 'id' | 'createdAt' | 'status'>) => {
+    const newSuggestion: EntityUpdateSuggestion = {
+      ...suggestion,
+      id: `suggestion_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      status: SuggestionStatus.PENDING,
+      createdAt: new Date()
+    };
+    setSuggestions(prev => [...prev, newSuggestion]);
+    console.log(`[Suggestion] New ${suggestion.type} for "${suggestion.entityName}": ${suggestion.reason || 'Review suggested changes'}`);
+    return newSuggestion;
+  };
+
+  const handleApproveSuggestion = (suggestionId: string) => {
+    const suggestion = suggestions.find(s => s.id === suggestionId);
+    if (!suggestion || !model || suggestion.status !== SuggestionStatus.PENDING) return;
+
+    if (suggestion.type === SuggestionType.NEW_PROPERTY && suggestion.suggestedProperties) {
+      const entity = model.entities.find(e => e.id === suggestion.entityId);
+      if (entity) {
+        // Filter out properties that already exist to prevent duplicates
+        const existingPropNames = new Set(entity.properties.map(p => p.name));
+        const newProperties = suggestion.suggestedProperties
+          .map(ps => ps.property)
+          .filter(p => !existingPropNames.has(p.name));
+        
+        if (newProperties.length > 0) {
+          setModel(prev => ({
+            ...prev,
+            entities: prev.entities.map(e => 
+              e.id === suggestion.entityId 
+                ? { ...e, properties: [...e.properties, ...newProperties] }
+                : e
+            )
+          }));
+          console.log(`[Suggestion] APPROVED: Added ${newProperties.length} new properties to "${suggestion.entityName}"`);
+        }
+      }
+    } else if (suggestion.type === SuggestionType.UPDATED_DESCRIPTION && suggestion.suggestedDescription) {
+      setModel(prev => ({
+        ...prev,
+        entities: prev.entities.map(e => {
+          if (e.id !== suggestion.entityId) return e;
+          
+          // Preserve description history
+          const historyEntry: DescriptionHistory = {
+            content: e.description,
+            timestamp: new Date(),
+            author: 'System'
+          };
+          const existingHistory = e.descriptionHistory || [];
+          
+          return {
+            ...e,
+            description: suggestion.suggestedDescription!,
+            descriptionHistory: [...existingHistory, historyEntry]
+          };
+        })
+      }));
+      console.log(`[Suggestion] APPROVED: Updated description for "${suggestion.entityName}" (previous saved to history)`);
+    }
+
+    // Update status to APPROVED (preserves audit trail)
+    setSuggestions(prev => prev.map(s => 
+      s.id === suggestionId 
+        ? { ...s, status: SuggestionStatus.APPROVED, reviewedAt: new Date() }
+        : s
+    ));
+  };
+
+  const handleRejectSuggestion = (suggestionId: string) => {
+    const suggestion = suggestions.find(s => s.id === suggestionId);
+    if (!suggestion || suggestion.status !== SuggestionStatus.PENDING) return;
+    
+    console.log(`[Suggestion] REJECTED: ${suggestion.type} for "${suggestion.entityName}"`);
+    // Update status to REJECTED (preserves audit trail)
+    setSuggestions(prev => prev.map(s => 
+      s.id === suggestionId 
+        ? { ...s, status: SuggestionStatus.REJECTED, reviewedAt: new Date() }
+        : s
+    ));
+  };
   
   // Helper to get selected objects
   const selectedEntity = useMemo(() => 
@@ -666,7 +754,17 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
 
       {/* Main Graph Area */}
       <div className="flex-1 relative bg-gray-50/50 h-full overflow-hidden">
-        <GraphView model={model} selection={selection} onSelect={setSelection} />
+        <GraphView 
+            model={model} 
+            selection={selection} 
+            onSelect={setSelection}
+            suggestions={suggestions}
+            onApproveSuggestion={handleApproveSuggestion}
+            onRejectSuggestion={handleRejectSuggestion}
+            isSuggestionPanelOpen={isSuggestionPanelOpen}
+            setIsSuggestionPanelOpen={setIsSuggestionPanelOpen}
+            onAddSuggestion={addSuggestion}
+        />
         
         {/* Floating Actions */}
         <div className="absolute top-4 right-4 flex gap-2 z-10">
@@ -2615,8 +2713,101 @@ const PhysicalAssetViewer: React.FC<{ tableId: string, model: SemanticModel }> =
 const GraphView: React.FC<{
     model: SemanticModel, 
     selection: Selection,
-    onSelect: (sel: Selection) => void 
-}> = ({ model, selection, onSelect }) => {
+    onSelect: (sel: Selection) => void,
+    suggestions: EntityUpdateSuggestion[],
+    onApproveSuggestion: (id: string) => void,
+    onRejectSuggestion: (id: string) => void,
+    isSuggestionPanelOpen: boolean,
+    setIsSuggestionPanelOpen: (open: boolean) => void,
+    onAddSuggestion: (suggestion: Omit<EntityUpdateSuggestion, 'id' | 'createdAt' | 'status'>) => void
+}> = ({ model, selection, onSelect, suggestions, onApproveSuggestion, onRejectSuggestion, isSuggestionPanelOpen, setIsSuggestionPanelOpen, onAddSuggestion }) => {
+    
+    // Sync Schema function to simulate detecting updates
+    const handleSyncSchema = () => {
+        console.log('[Schema Sync] Starting schema sync for model:', model.name);
+        
+        // Mock new properties that could be discovered from schema sync
+        // Using deterministic IDs based on entity and property name
+        const mockNewProperties: Record<string, Property[]> = {
+            'entity_supplier': [
+                { id: 'prop_supplier_contact_email', name: 'contact_email', dataType: 'STRING', description: 'Primary contact email for the supplier' },
+                { id: 'prop_supplier_payment_terms', name: 'payment_terms', dataType: 'STRING', description: 'Standard payment terms (Net 30, Net 60, etc.)' }
+            ],
+            'entity_product': [
+                { id: 'prop_product_manufacturer', name: 'manufacturer', dataType: 'STRING', description: 'Original manufacturer of the product' },
+                { id: 'prop_product_shelf_life_days', name: 'shelf_life_days', dataType: 'INTEGER', description: 'Product shelf life in days' }
+            ],
+            'entity_inventory': [
+                { id: 'prop_inventory_safety_stock', name: 'safety_stock', dataType: 'INTEGER', description: 'Minimum safety stock level' }
+            ]
+        };
+
+        // Mock description updates
+        const mockDescriptionUpdates: Record<string, string> = {
+            'entity_warehouse': 'Distribution centers, fulfillment hubs, and cold storage facilities for inventory management'
+        };
+
+        let suggestionsCreated = 0;
+        const pendingSuggestions = suggestions.filter(s => s.status === SuggestionStatus.PENDING);
+
+        // Create suggestions for new properties
+        model.entities.forEach(entity => {
+            const newProps = mockNewProperties[entity.id];
+            if (newProps && newProps.length > 0) {
+                // Filter out properties that already exist in the entity (by name)
+                const existingPropNames = new Set(entity.properties.map(p => p.name));
+                const trulyNewProps = newProps.filter(p => !existingPropNames.has(p.name));
+                
+                // Check if there's already a pending suggestion for this entity with new properties
+                const hasPendingSuggestion = pendingSuggestions.some(s => 
+                    s.entityId === entity.id && 
+                    s.type === SuggestionType.NEW_PROPERTY
+                );
+                
+                if (trulyNewProps.length > 0 && !hasPendingSuggestion) {
+                    onAddSuggestion({
+                        entityId: entity.id,
+                        entityName: entity.name,
+                        type: SuggestionType.NEW_PROPERTY,
+                        source: SuggestionSource.SCHEMA_SYNC,
+                        suggestedProperties: trulyNewProps.map(p => ({ property: p, reason: 'Detected in data source schema' })),
+                        reason: `Found ${trulyNewProps.length} new column(s) in the data source`
+                    });
+                    suggestionsCreated++;
+                }
+            }
+
+            const newDesc = mockDescriptionUpdates[entity.id];
+            // Only suggest if description is different from current AND from any pending suggestion
+            if (newDesc && newDesc !== entity.description) {
+                // Check if there's already a pending description suggestion for this entity
+                const hasPendingDescSuggestion = pendingSuggestions.some(s => 
+                    s.entityId === entity.id && 
+                    s.type === SuggestionType.UPDATED_DESCRIPTION
+                );
+                
+                if (!hasPendingDescSuggestion) {
+                    onAddSuggestion({
+                        entityId: entity.id,
+                        entityName: entity.name,
+                        type: SuggestionType.UPDATED_DESCRIPTION,
+                        source: SuggestionSource.AI_GENERATION,
+                        currentDescription: entity.description,
+                        suggestedDescription: newDesc,
+                        reason: 'AI-suggested improved description based on data patterns'
+                    });
+                    suggestionsCreated++;
+                }
+            }
+        });
+
+        if (suggestionsCreated > 0) {
+            console.log(`[Schema Sync] Created ${suggestionsCreated} suggestion(s). Check the Suggestions panel to review.`);
+            setIsSuggestionPanelOpen(true);
+        } else {
+            console.log('[Schema Sync] No new updates detected. Schema is up to date.');
+        }
+    };
     
     // Layer visibility state
     const [showSemanticLayer, setShowSemanticLayer] = useState(true);
@@ -3085,6 +3276,27 @@ const GraphView: React.FC<{
                             </label>
                         </div>
                     )}
+                </div>
+                
+                {/* Sync Schema Button */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); handleSyncSchema(); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
+                    title="Sync with data source schema"
+                >
+                    <RefreshCw size={16} />
+                    <span className="text-sm font-medium">Sync Schema</span>
+                </button>
+                
+                {/* Suggestions Panel */}
+                <div className="bg-white rounded-lg shadow-md border border-gray-200">
+                    <SuggestionPanel
+                        suggestions={suggestions}
+                        onApprove={onApproveSuggestion}
+                        onReject={onRejectSuggestion}
+                        isOpen={isSuggestionPanelOpen}
+                        onToggle={() => setIsSuggestionPanelOpen(!isSuggestionPanelOpen)}
+                    />
                 </div>
                 
                 {/* Stats */}
