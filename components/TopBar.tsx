@@ -1,7 +1,16 @@
 import React from 'react';
-import { Menu, Search, Bell, HelpCircle, Settings, Grid } from 'lucide-react';
+import { Menu, Search, Bell, HelpCircle, Grid } from 'lucide-react';
+import { EntityUpdateSuggestion, SuggestionStatus } from '../types';
 
-export const TopBar: React.FC = () => {
+interface TopBarProps {
+  suggestions?: EntityUpdateSuggestion[];
+  onSuggestionClick?: () => void;
+}
+
+export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionClick }) => {
+  const pendingCount = suggestions.filter(s => s.status === SuggestionStatus.PENDING).length;
+  const hasPending = pendingCount > 0;
+
   return (
     <header className="h-12 bg-white border-b border-gray-200 flex items-center px-4 justify-between sticky top-0 z-50 shadow-sm">
       <div className="flex items-center gap-4 flex-1">
@@ -9,7 +18,6 @@ export const TopBar: React.FC = () => {
           <Menu size={24} />
         </button>
         <div className="flex items-center gap-2">
-           {/* Google Cloud Logo Placeholder */}
            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 4V12H20C19.99 7.59 16.41 4.01 12 4Z" fill="#4285F4"/>
              <path d="M4 12C4 16.41 7.59 20 12 20V12H4Z" fill="#34A853"/>
@@ -39,7 +47,24 @@ export const TopBar: React.FC = () => {
       <div className="flex items-center gap-3 justify-end flex-1">
          <button className="text-gray-600 hover:bg-gray-100 p-1.5 rounded-full"><span className="text-sm font-semibold border border-gray-500 rounded px-1">&gt;_</span></button>
          <button className="text-gray-600 hover:bg-gray-100 p-1.5 rounded-full"><HelpCircle size={20}/></button>
-         <button className="text-gray-600 hover:bg-gray-100 p-1.5 rounded-full"><Bell size={20}/></button>
+         
+         <button 
+           onClick={onSuggestionClick}
+           className={`relative p-1.5 rounded-full transition-colors ${
+             hasPending 
+               ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' 
+               : 'text-gray-600 hover:bg-gray-100'
+           }`}
+           title={hasPending ? `${pendingCount} recommended changes` : 'No pending changes'}
+         >
+           <Bell size={20} />
+           {hasPending && (
+             <span className="absolute -top-0.5 -right-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+               {pendingCount}
+             </span>
+           )}
+         </button>
+         
          <button className="text-gray-600 hover:bg-gray-100 p-1.5 rounded-full"><Grid size={20}/></button>
          <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-medium">
             U

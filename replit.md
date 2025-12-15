@@ -73,6 +73,40 @@ Maintains conversation history by replaying previous messages to the chat sessio
 
 **Rationale**: Embedding the semantic model in system instructions allows the AI to provide contextually relevant responses about the user's specific data model. The Gemini 2.5 Flash model balances performance and capability for this use case.
 
+### Entity Update Suggestion System
+
+**Purpose:**
+The suggestion system provides a notification-driven workflow for reviewing and approving schema changes detected by the backend. This simulates how a production system would receive updates from data source schema syncs and AI-powered suggestions.
+
+**Architecture:**
+- **State Management**: Suggestions are managed at the App.tsx level and passed down to SemanticBuilder and TopBar components
+- **Notification UI**: TopBar displays a bell icon with badge count for pending suggestions
+- **Review Panel**: SuggestionPanel component renders in the GraphView, showing detailed suggestion cards with approve/reject actions
+
+**Suggestion Types (types.ts):**
+- `NEW_PROPERTY`: Suggests adding new properties to an entity based on schema changes
+- `UPDATED_DESCRIPTION`: AI-generated improved descriptions for entities
+- `NEW_RELATIONSHIP`: (Extensible) For suggested entity relationships
+
+**Workflow:**
+1. Backend simulation triggers after 2 seconds when a supply chain model is active
+2. System creates suggestions for entities that have schema updates
+3. User sees notification badge in TopBar
+4. Clicking notification opens suggestions panel in SemanticBuilder
+5. User can approve (applies changes) or reject (dismisses) each suggestion
+6. All actions are logged to console with `[Suggestion]` prefix
+
+**Deduplication:**
+- Properties are checked by name before suggesting
+- Pending suggestions are tracked to prevent duplicates
+- Deterministic property IDs prevent conflicts on repeated syncs
+
+**Audit Trail:**
+- Approved/rejected suggestions retain status with reviewedAt timestamp
+- Description updates preserve history in entity's descriptionHistory array
+
+**Rationale**: This notification-based approach keeps users informed of recommended changes without interrupting their workflow. The approve/reject pattern gives users control while maintaining data quality.
+
 ### User Interface Patterns
 
 **Multi-View Navigation:**

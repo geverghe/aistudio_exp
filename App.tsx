@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TopBar } from './components/TopBar';
 import { SideNav } from './components/SideNav';
 import { Dashboard } from './components/Dashboard';
 import { SemanticBuilder } from './components/SemanticBuilder';
 import { AgentChat } from './components/AgentChat';
-import { ViewState, SemanticModel, SemanticModelCollection, EntityType, PropertyType } from './types';
+import { ViewState, SemanticModel, SemanticModelCollection, EntityType, PropertyType, EntityUpdateSuggestion, SuggestionStatus, SuggestionSource, SuggestionType, DescriptionHistory, Property } from './types';
 
 // Mock initial data based on the PDF examples (Revenue Domain)
 const INITIAL_MODELS: SemanticModelCollection = {
@@ -227,6 +227,8 @@ function App() {
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.DASHBOARD);
   const [modelCollection, setModelCollection] = useState<SemanticModelCollection>(INITIAL_MODELS);
   const [activeModelId, setActiveModelId] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<EntityUpdateSuggestion[]>([]);
+  const [isSuggestionPanelOpen, setIsSuggestionPanelOpen] = useState(false);
   
   const activeModel = activeModelId ? modelCollection.models.find(m => m.id === activeModelId) : null;
   
@@ -237,9 +239,168 @@ function App() {
     }));
   };
 
+  const handleAddSuggestion = useCallback((suggestion: Omit<EntityUpdateSuggestion, 'id' | 'createdAt' | 'status'>) => {
+    const newSuggestion: EntityUpdateSuggestion = {
+      ...suggestion,
+      id: `suggestion_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date(),
+      status: SuggestionStatus.PENDING
+    };
+    setSuggestions(prev => [...prev, newSuggestion]);
+    console.log(`[Suggestion] New ${suggestion.type} for "${suggestion.entityName}": ${suggestion.reason || 'Review suggested changes'}`);
+    return newSuggestion;
+  }, []);
+
+  const handleApproveSuggestion = useCallback((suggestionId: string) => {
+    const suggestion = suggestions.find(s => s.id === suggestionId);
+    if (!suggestion || !activeModel || suggestion.status !== SuggestionStatus.PENDING) return;
+
+    if (suggestion.type === SuggestionType.NEW_PROPERTY && suggestion.suggestedProperties) {
+      const entity = activeModel.entities.find(e => e.id === suggestion.entityId);
+      if (entity) {
+        const existingPropNames = new Set(entity.properties.map(p => p.name));
+        const newProperties = suggestion.suggestedProperties
+          .map(ps => ps.property)
+          .filter(p => !existingPropNames.has(p.name));
+        
+        if (newProperties.length > 0) {
+          updateActiveModel({
+            ...activeModel,
+            entities: activeModel.entities.map(e => 
+              e.id === suggestion.entityId 
+                ? { ...e, properties: [...e.properties, ...newProperties] }
+                : e
+            ),
+            updatedAt: new Date()
+          });
+          console.log(`[Suggestion] APPROVED: Added ${newProperties.length} new properties to "${suggestion.entityName}"`);
+        }
+      }
+    } else if (suggestion.type === SuggestionType.UPDATED_DESCRIPTION && suggestion.suggestedDescription) {
+      updateActiveModel({
+        ...activeModel,
+        entities: activeModel.entities.map(e => {
+          if (e.id !== suggestion.entityId) return e;
+          
+          const historyEntry: DescriptionHistory = {
+            content: e.description,
+            timestamp: new Date(),
+            author: 'System'
+          };
+          const existingHistory = e.descriptionHistory || [];
+          
+          return {
+            ...e,
+            description: suggestion.suggestedDescription!,
+            descriptionHistory: [...existingHistory, historyEntry]
+          };
+        }),
+        updatedAt: new Date()
+      });
+      console.log(`[Suggestion] APPROVED: Updated description for "${suggestion.entityName}" (previous saved to history)`);
+    }
+
+    setSuggestions(prev => prev.map(s => 
+      s.id === suggestionId 
+        ? { ...s, status: SuggestionStatus.APPROVED, reviewedAt: new Date() }
+        : s
+    ));
+  }, [suggestions, activeModel]);
+
+  const handleRejectSuggestion = useCallback((suggestionId: string) => {
+    const suggestion = suggestions.find(s => s.id === suggestionId);
+    if (!suggestion || suggestion.status !== SuggestionStatus.PENDING) return;
+    
+    console.log(`[Suggestion] REJECTED: ${suggestion.type} for "${suggestion.entityName}"`);
+    setSuggestions(prev => prev.map(s => 
+      s.id === suggestionId 
+        ? { ...s, status: SuggestionStatus.REJECTED, reviewedAt: new Date() }
+        : s
+    ));
+  }, [suggestions]);
+
+  const handleTopBarNotificationClick = () => {
+    if (currentView !== ViewState.SEMANTIC_MODELER) {
+      setCurrentView(ViewState.SEMANTIC_MODELER);
+    }
+    setIsSuggestionPanelOpen(true);
+  };
+
+  // Simulate backend schema sync - creates suggestions when supply chain model is active
+  useEffect(() => {
+    if (!activeModel) return;
+    
+    // Check if this is a supply chain model with specific entities
+    const hasSupplierEntity = activeModel.entities.some(e => e.id === 'entity_supplier');
+    const hasWarehouseEntity = activeModel.entities.some(e => e.id === 'entity_warehouse');
+    
+    if (!hasSupplierEntity && !hasWarehouseEntity) return;
+    
+    // Simulate backend sync after a short delay
+    const syncTimer = setTimeout(() => {
+      const pendingSuggestions = suggestions.filter(s => s.status === SuggestionStatus.PENDING);
+      
+      // Mock new properties for supplier entity
+      if (hasSupplierEntity) {
+        const supplierEntity = activeModel.entities.find(e => e.id === 'entity_supplier');
+        if (supplierEntity) {
+          const existingPropNames = new Set(supplierEntity.properties.map(p => p.name));
+          const newProps = [
+            { id: 'prop_supplier_contact_email', name: 'contact_email', dataType: 'STRING', description: 'Primary contact email for the supplier' },
+            { id: 'prop_supplier_payment_terms', name: 'payment_terms', dataType: 'STRING', description: 'Standard payment terms (Net 30, Net 60, etc.)' }
+          ].filter(p => !existingPropNames.has(p.name));
+          
+          const hasPendingSuggestion = pendingSuggestions.some(s => 
+            s.entityId === 'entity_supplier' && s.type === SuggestionType.NEW_PROPERTY
+          );
+          
+          if (newProps.length > 0 && !hasPendingSuggestion) {
+            handleAddSuggestion({
+              entityId: 'entity_supplier',
+              entityName: supplierEntity.name,
+              type: SuggestionType.NEW_PROPERTY,
+              source: SuggestionSource.SCHEMA_SYNC,
+              suggestedProperties: newProps.map(p => ({ property: p, reason: 'Detected in data source schema' })),
+              reason: `Found ${newProps.length} new column(s) in the data source`
+            });
+          }
+        }
+      }
+      
+      // Mock description update for warehouse entity
+      if (hasWarehouseEntity) {
+        const warehouseEntity = activeModel.entities.find(e => e.id === 'entity_warehouse');
+        const suggestedDesc = 'Distribution centers, fulfillment hubs, and cold storage facilities for inventory management';
+        
+        if (warehouseEntity && warehouseEntity.description !== suggestedDesc) {
+          const hasPendingDescSuggestion = pendingSuggestions.some(s => 
+            s.entityId === 'entity_warehouse' && s.type === SuggestionType.UPDATED_DESCRIPTION
+          );
+          
+          if (!hasPendingDescSuggestion) {
+            handleAddSuggestion({
+              entityId: 'entity_warehouse',
+              entityName: warehouseEntity.name,
+              type: SuggestionType.UPDATED_DESCRIPTION,
+              source: SuggestionSource.AI_GENERATION,
+              currentDescription: warehouseEntity.description,
+              suggestedDescription: suggestedDesc,
+              reason: 'AI-suggested improved description based on data patterns'
+            });
+          }
+        }
+      }
+    }, 2000); // 2 second delay to simulate backend processing
+    
+    return () => clearTimeout(syncTimer);
+  }, [activeModelId, activeModel?.entities]);
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <TopBar />
+      <TopBar 
+        suggestions={suggestions}
+        onSuggestionClick={handleTopBarNotificationClick}
+      />
       <div className="flex flex-1 overflow-hidden">
         <SideNav currentView={currentView} onNavigate={setCurrentView} />
         <main className="flex-1 overflow-auto relative">
@@ -266,6 +427,12 @@ function App() {
                       setActiveModelId(null);
                     }
                   }}
+                  suggestions={suggestions}
+                  onAddSuggestion={handleAddSuggestion}
+                  onApproveSuggestion={handleApproveSuggestion}
+                  onRejectSuggestion={handleRejectSuggestion}
+                  isSuggestionPanelOpen={isSuggestionPanelOpen}
+                  setIsSuggestionPanelOpen={setIsSuggestionPanelOpen}
                 />
             )}
             {currentView === ViewState.AGENT_CHAT && (
