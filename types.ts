@@ -121,3 +121,43 @@ export interface ChatMessage {
   timestamp: Date;
   metadata?: any;
 }
+
+export enum SuggestionStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED'
+}
+
+export enum SuggestionSource {
+  AI_GENERATION = 'AI_GENERATION',
+  IMPORT = 'IMPORT',
+  DATA_SCAN = 'DATA_SCAN',
+  SCHEMA_SYNC = 'SCHEMA_SYNC'
+}
+
+export enum SuggestionType {
+  NEW_PROPERTY = 'NEW_PROPERTY',
+  UPDATED_DESCRIPTION = 'UPDATED_DESCRIPTION',
+  NEW_ENTITY = 'NEW_ENTITY',
+  UPDATED_ENTITY = 'UPDATED_ENTITY'
+}
+
+export interface PropertySuggestion {
+  property: Property;
+  reason?: string;
+}
+
+export interface EntityUpdateSuggestion {
+  id: string;
+  entityId: string;
+  entityName: string;
+  type: SuggestionType;
+  source: SuggestionSource;
+  status: SuggestionStatus;
+  suggestedProperties?: PropertySuggestion[];
+  suggestedDescription?: string;
+  currentDescription?: string;
+  reason?: string;
+  createdAt: Date;
+  reviewedAt?: Date;
+}
