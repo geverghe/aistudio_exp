@@ -4381,13 +4381,13 @@ const NewModelModal: React.FC<{
                     type: EntityType.ENTITY,
                     description: 'Vendors and suppliers providing raw materials and goods',
                     properties: [
-                        { id: 'prop_supplier_id', name: 'supplier_id', type: PropertyType.STRING, description: 'Unique supplier identifier', binding: 'SCM_DIM_SUPPLIER.supplier_id', isPrimaryKey: true },
-                        { id: 'prop_supplier_name', name: 'supplier_name', type: PropertyType.STRING, description: 'Name of the supplier company', binding: 'SCM_DIM_SUPPLIER.supplier_name' },
-                        { id: 'prop_supplier_country', name: 'country', type: PropertyType.STRING, description: 'Country where supplier is located', binding: 'SCM_DIM_SUPPLIER.country' },
-                        { id: 'prop_supplier_rating', name: 'rating', type: PropertyType.FLOAT, description: 'Performance rating (1-5)', binding: 'SCM_DIM_SUPPLIER.rating' },
-                        { id: 'prop_supplier_lead_time', name: 'avg_lead_time_days', type: PropertyType.INTEGER, description: 'Average lead time in days', binding: 'SCM_DIM_SUPPLIER.avg_lead_time_days' }
+                        { id: 'prop_supplier_id', name: 'supplier_id', dataType: 'STRING', description: 'Unique supplier identifier', binding: 'SCM_DIM_SUPPLIER.supplier_id', isUniqueKey: true },
+                        { id: 'prop_supplier_name', name: 'supplier_name', dataType: 'STRING', description: 'Name of the supplier company', binding: 'SCM_DIM_SUPPLIER.supplier_name' },
+                        { id: 'prop_supplier_country', name: 'country', dataType: 'STRING', description: 'Country where supplier is located', binding: 'SCM_DIM_SUPPLIER.country' },
+                        { id: 'prop_supplier_rating', name: 'rating', dataType: 'FLOAT', description: 'Performance rating (1-5)', binding: 'SCM_DIM_SUPPLIER.rating' },
+                        { id: 'prop_supplier_lead_time', name: 'avg_lead_time_days', dataType: 'INTEGER', description: 'Average lead time in days', binding: 'SCM_DIM_SUPPLIER.avg_lead_time_days' }
                     ],
-                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_DIM_SUPPLIER' }]
+                    bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_DIM_SUPPLIER' }]
                 },
                 {
                     id: 'entity_warehouse',
@@ -4395,13 +4395,13 @@ const NewModelModal: React.FC<{
                     type: EntityType.DIMENSION,
                     description: 'Distribution centers and storage facilities',
                     properties: [
-                        { id: 'prop_wh_id', name: 'warehouse_id', type: PropertyType.STRING, description: 'Unique warehouse identifier', binding: 'SCM_DIM_WAREHOUSE.warehouse_id', isPrimaryKey: true },
-                        { id: 'prop_wh_name', name: 'warehouse_name', type: PropertyType.STRING, description: 'Name of the warehouse', binding: 'SCM_DIM_WAREHOUSE.warehouse_name' },
-                        { id: 'prop_wh_location', name: 'location', type: PropertyType.STRING, description: 'City and state location', binding: 'SCM_DIM_WAREHOUSE.location' },
-                        { id: 'prop_wh_capacity', name: 'capacity_units', type: PropertyType.INTEGER, description: 'Maximum storage capacity', binding: 'SCM_DIM_WAREHOUSE.capacity_units' },
-                        { id: 'prop_wh_type', name: 'warehouse_type', type: PropertyType.STRING, description: 'Type: Distribution, Fulfillment, Cold Storage', binding: 'SCM_DIM_WAREHOUSE.warehouse_type' }
+                        { id: 'prop_wh_id', name: 'warehouse_id', dataType: 'STRING', description: 'Unique warehouse identifier', binding: 'SCM_DIM_WAREHOUSE.warehouse_id', isUniqueKey: true },
+                        { id: 'prop_wh_name', name: 'warehouse_name', dataType: 'STRING', description: 'Name of the warehouse', binding: 'SCM_DIM_WAREHOUSE.warehouse_name' },
+                        { id: 'prop_wh_location', name: 'location', dataType: 'STRING', description: 'City and state location', binding: 'SCM_DIM_WAREHOUSE.location' },
+                        { id: 'prop_wh_capacity', name: 'capacity_units', dataType: 'INTEGER', description: 'Maximum storage capacity', binding: 'SCM_DIM_WAREHOUSE.capacity_units' },
+                        { id: 'prop_wh_type', name: 'warehouse_type', dataType: 'STRING', description: 'Type: Distribution, Fulfillment, Cold Storage', binding: 'SCM_DIM_WAREHOUSE.warehouse_type' }
                     ],
-                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_DIM_WAREHOUSE' }]
+                    bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_DIM_WAREHOUSE' }]
                 },
                 {
                     id: 'entity_product',
@@ -4409,13 +4409,13 @@ const NewModelModal: React.FC<{
                     type: EntityType.DIMENSION,
                     description: 'Products and SKUs in the supply chain',
                     properties: [
-                        { id: 'prop_prod_sku', name: 'sku_id', type: PropertyType.STRING, description: 'Stock keeping unit identifier', binding: 'SCM_DIM_PRODUCT.sku_id', isPrimaryKey: true },
-                        { id: 'prop_prod_name', name: 'product_name', type: PropertyType.STRING, description: 'Product display name', binding: 'SCM_DIM_PRODUCT.product_name' },
-                        { id: 'prop_prod_category', name: 'category', type: PropertyType.STRING, description: 'Product category', binding: 'SCM_DIM_PRODUCT.category' },
-                        { id: 'prop_prod_unit_cost', name: 'unit_cost', type: PropertyType.FLOAT, description: 'Cost per unit', binding: 'SCM_DIM_PRODUCT.unit_cost' },
-                        { id: 'prop_prod_weight', name: 'weight_kg', type: PropertyType.FLOAT, description: 'Weight in kilograms', binding: 'SCM_DIM_PRODUCT.weight_kg' }
+                        { id: 'prop_prod_sku', name: 'sku_id', dataType: 'STRING', description: 'Stock keeping unit identifier', binding: 'SCM_DIM_PRODUCT.sku_id', isUniqueKey: true },
+                        { id: 'prop_prod_name', name: 'product_name', dataType: 'STRING', description: 'Product display name', binding: 'SCM_DIM_PRODUCT.product_name' },
+                        { id: 'prop_prod_category', name: 'category', dataType: 'STRING', description: 'Product category', binding: 'SCM_DIM_PRODUCT.category' },
+                        { id: 'prop_prod_unit_cost', name: 'unit_cost', dataType: 'FLOAT', description: 'Cost per unit', binding: 'SCM_DIM_PRODUCT.unit_cost' },
+                        { id: 'prop_prod_weight', name: 'weight_kg', dataType: 'FLOAT', description: 'Weight in kilograms', binding: 'SCM_DIM_PRODUCT.weight_kg' }
                     ],
-                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_DIM_PRODUCT' }]
+                    bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_DIM_PRODUCT' }]
                 },
                 {
                     id: 'entity_inventory',
@@ -4423,14 +4423,14 @@ const NewModelModal: React.FC<{
                     type: EntityType.FACT,
                     description: 'Current inventory levels across warehouses',
                     properties: [
-                        { id: 'prop_inv_id', name: 'inventory_id', type: PropertyType.STRING, description: 'Unique inventory record ID', binding: 'SCM_FACT_INVENTORY.inventory_id', isPrimaryKey: true },
-                        { id: 'prop_inv_sku', name: 'sku_id', type: PropertyType.STRING, description: 'Product SKU', binding: 'SCM_FACT_INVENTORY.sku_id' },
-                        { id: 'prop_inv_wh', name: 'warehouse_id', type: PropertyType.STRING, description: 'Warehouse location', binding: 'SCM_FACT_INVENTORY.warehouse_id' },
-                        { id: 'prop_inv_qty', name: 'quantity_on_hand', type: PropertyType.INTEGER, description: 'Current stock quantity', binding: 'SCM_FACT_INVENTORY.quantity_on_hand' },
-                        { id: 'prop_inv_reorder', name: 'reorder_point', type: PropertyType.INTEGER, description: 'Quantity threshold for reorder', binding: 'SCM_FACT_INVENTORY.reorder_point' },
-                        { id: 'prop_inv_updated', name: 'last_updated', type: PropertyType.TIMESTAMP, description: 'Last inventory update timestamp', binding: 'SCM_FACT_INVENTORY.last_updated' }
+                        { id: 'prop_inv_id', name: 'inventory_id', dataType: 'STRING', description: 'Unique inventory record ID', binding: 'SCM_FACT_INVENTORY.inventory_id', isUniqueKey: true },
+                        { id: 'prop_inv_sku', name: 'sku_id', dataType: 'STRING', description: 'Product SKU', binding: 'SCM_FACT_INVENTORY.sku_id' },
+                        { id: 'prop_inv_wh', name: 'warehouse_id', dataType: 'STRING', description: 'Warehouse location', binding: 'SCM_FACT_INVENTORY.warehouse_id' },
+                        { id: 'prop_inv_qty', name: 'quantity_on_hand', dataType: 'INTEGER', description: 'Current stock quantity', binding: 'SCM_FACT_INVENTORY.quantity_on_hand' },
+                        { id: 'prop_inv_reorder', name: 'reorder_point', dataType: 'INTEGER', description: 'Quantity threshold for reorder', binding: 'SCM_FACT_INVENTORY.reorder_point' },
+                        { id: 'prop_inv_updated', name: 'last_updated', dataType: 'TIMESTAMP', description: 'Last inventory update timestamp', binding: 'SCM_FACT_INVENTORY.last_updated' }
                     ],
-                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_FACT_INVENTORY' }]
+                    bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_FACT_INVENTORY' }]
                 },
                 {
                     id: 'entity_shipment',
@@ -4438,15 +4438,15 @@ const NewModelModal: React.FC<{
                     type: EntityType.FACT,
                     description: 'Shipments and deliveries in transit',
                     properties: [
-                        { id: 'prop_ship_id', name: 'shipment_id', type: PropertyType.STRING, description: 'Unique shipment tracking ID', binding: 'SCM_FACT_SHIPMENT.shipment_id', isPrimaryKey: true },
-                        { id: 'prop_ship_origin', name: 'origin_warehouse_id', type: PropertyType.STRING, description: 'Originating warehouse', binding: 'SCM_FACT_SHIPMENT.origin_warehouse_id' },
-                        { id: 'prop_ship_dest', name: 'destination', type: PropertyType.STRING, description: 'Delivery destination', binding: 'SCM_FACT_SHIPMENT.destination' },
-                        { id: 'prop_ship_carrier', name: 'carrier', type: PropertyType.STRING, description: 'Shipping carrier name', binding: 'SCM_FACT_SHIPMENT.carrier' },
-                        { id: 'prop_ship_status', name: 'status', type: PropertyType.STRING, description: 'Current shipment status', binding: 'SCM_FACT_SHIPMENT.status' },
-                        { id: 'prop_ship_date', name: 'ship_date', type: PropertyType.TIMESTAMP, description: 'Date shipment was dispatched', binding: 'SCM_FACT_SHIPMENT.ship_date' },
-                        { id: 'prop_ship_eta', name: 'estimated_arrival', type: PropertyType.TIMESTAMP, description: 'Expected delivery date', binding: 'SCM_FACT_SHIPMENT.estimated_arrival' }
+                        { id: 'prop_ship_id', name: 'shipment_id', dataType: 'STRING', description: 'Unique shipment tracking ID', binding: 'SCM_FACT_SHIPMENT.shipment_id', isUniqueKey: true },
+                        { id: 'prop_ship_origin', name: 'origin_warehouse_id', dataType: 'STRING', description: 'Originating warehouse', binding: 'SCM_FACT_SHIPMENT.origin_warehouse_id' },
+                        { id: 'prop_ship_dest', name: 'destination', dataType: 'STRING', description: 'Delivery destination', binding: 'SCM_FACT_SHIPMENT.destination' },
+                        { id: 'prop_ship_carrier', name: 'carrier', dataType: 'STRING', description: 'Shipping carrier name', binding: 'SCM_FACT_SHIPMENT.carrier' },
+                        { id: 'prop_ship_status', name: 'status', dataType: 'STRING', description: 'Current shipment status', binding: 'SCM_FACT_SHIPMENT.status' },
+                        { id: 'prop_ship_date', name: 'ship_date', dataType: 'TIMESTAMP', description: 'Date shipment was dispatched', binding: 'SCM_FACT_SHIPMENT.ship_date' },
+                        { id: 'prop_ship_eta', name: 'estimated_arrival', dataType: 'TIMESTAMP', description: 'Expected delivery date', binding: 'SCM_FACT_SHIPMENT.estimated_arrival' }
                     ],
-                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_FACT_SHIPMENT' }]
+                    bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_FACT_SHIPMENT' }]
                 },
                 {
                     id: 'entity_order',
@@ -4454,15 +4454,15 @@ const NewModelModal: React.FC<{
                     type: EntityType.FACT,
                     description: 'Purchase orders placed with suppliers',
                     properties: [
-                        { id: 'prop_po_id', name: 'po_id', type: PropertyType.STRING, description: 'Purchase order number', binding: 'SCM_FACT_PO.po_id', isPrimaryKey: true },
-                        { id: 'prop_po_supplier', name: 'supplier_id', type: PropertyType.STRING, description: 'Supplier fulfilling the order', binding: 'SCM_FACT_PO.supplier_id' },
-                        { id: 'prop_po_sku', name: 'sku_id', type: PropertyType.STRING, description: 'Ordered product SKU', binding: 'SCM_FACT_PO.sku_id' },
-                        { id: 'prop_po_qty', name: 'quantity', type: PropertyType.INTEGER, description: 'Quantity ordered', binding: 'SCM_FACT_PO.quantity' },
-                        { id: 'prop_po_total', name: 'total_cost', type: PropertyType.FLOAT, description: 'Total order cost', binding: 'SCM_FACT_PO.total_cost' },
-                        { id: 'prop_po_date', name: 'order_date', type: PropertyType.TIMESTAMP, description: 'Date order was placed', binding: 'SCM_FACT_PO.order_date' },
-                        { id: 'prop_po_status', name: 'status', type: PropertyType.STRING, description: 'Order status: Pending, Confirmed, Shipped, Delivered', binding: 'SCM_FACT_PO.status' }
+                        { id: 'prop_po_id', name: 'po_id', dataType: 'STRING', description: 'Purchase order number', binding: 'SCM_FACT_PO.po_id', isUniqueKey: true },
+                        { id: 'prop_po_supplier', name: 'supplier_id', dataType: 'STRING', description: 'Supplier fulfilling the order', binding: 'SCM_FACT_PO.supplier_id' },
+                        { id: 'prop_po_sku', name: 'sku_id', dataType: 'STRING', description: 'Ordered product SKU', binding: 'SCM_FACT_PO.sku_id' },
+                        { id: 'prop_po_qty', name: 'quantity', dataType: 'INTEGER', description: 'Quantity ordered', binding: 'SCM_FACT_PO.quantity' },
+                        { id: 'prop_po_total', name: 'total_cost', dataType: 'FLOAT', description: 'Total order cost', binding: 'SCM_FACT_PO.total_cost' },
+                        { id: 'prop_po_date', name: 'order_date', dataType: 'TIMESTAMP', description: 'Date order was placed', binding: 'SCM_FACT_PO.order_date' },
+                        { id: 'prop_po_status', name: 'status', dataType: 'STRING', description: 'Order status: Pending, Confirmed, Shipped, Delivered', binding: 'SCM_FACT_PO.status' }
                     ],
-                    bindings: [{ type: 'BigQuery', resource: 'project.scm_dataset.SCM_FACT_PO' }]
+                    bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_FACT_PO' }]
                 }
             ];
 
@@ -4532,17 +4532,164 @@ const NewModelModal: React.FC<{
         }, contextSources.length > 0 ? 2000 : 500);
     };
 
+    // Shared supply chain model data
+    const getSupplyChainEntities = (): Entity[] => [
+        {
+            id: 'entity_supplier',
+            name: 'Supplier',
+            type: EntityType.ENTITY,
+            description: 'Vendors and suppliers providing raw materials and goods',
+            properties: [
+                { id: 'prop_supplier_id', name: 'supplier_id', dataType: 'STRING', description: 'Unique supplier identifier', binding: 'SCM_DIM_SUPPLIER.supplier_id', isUniqueKey: true },
+                { id: 'prop_supplier_name', name: 'supplier_name', dataType: 'STRING', description: 'Name of the supplier company', binding: 'SCM_DIM_SUPPLIER.supplier_name' },
+                { id: 'prop_supplier_country', name: 'country', dataType: 'STRING', description: 'Country where supplier is located', binding: 'SCM_DIM_SUPPLIER.country' },
+                { id: 'prop_supplier_rating', name: 'rating', dataType: 'FLOAT', description: 'Performance rating (1-5)', binding: 'SCM_DIM_SUPPLIER.rating' },
+                { id: 'prop_supplier_lead_time', name: 'avg_lead_time_days', dataType: 'INTEGER', description: 'Average lead time in days', binding: 'SCM_DIM_SUPPLIER.avg_lead_time_days' }
+            ],
+            bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_DIM_SUPPLIER' }]
+        },
+        {
+            id: 'entity_warehouse',
+            name: 'Warehouse',
+            type: EntityType.DIMENSION,
+            description: 'Distribution centers and storage facilities',
+            properties: [
+                { id: 'prop_wh_id', name: 'warehouse_id', dataType: 'STRING', description: 'Unique warehouse identifier', binding: 'SCM_DIM_WAREHOUSE.warehouse_id', isUniqueKey: true },
+                { id: 'prop_wh_name', name: 'warehouse_name', dataType: 'STRING', description: 'Name of the warehouse', binding: 'SCM_DIM_WAREHOUSE.warehouse_name' },
+                { id: 'prop_wh_location', name: 'location', dataType: 'STRING', description: 'City and state location', binding: 'SCM_DIM_WAREHOUSE.location' },
+                { id: 'prop_wh_capacity', name: 'capacity_units', dataType: 'INTEGER', description: 'Maximum storage capacity', binding: 'SCM_DIM_WAREHOUSE.capacity_units' },
+                { id: 'prop_wh_type', name: 'warehouse_type', dataType: 'STRING', description: 'Type: Distribution, Fulfillment, Cold Storage', binding: 'SCM_DIM_WAREHOUSE.warehouse_type' }
+            ],
+            bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_DIM_WAREHOUSE' }]
+        },
+        {
+            id: 'entity_product',
+            name: 'Product',
+            type: EntityType.DIMENSION,
+            description: 'Products and SKUs in the supply chain',
+            properties: [
+                { id: 'prop_prod_sku', name: 'sku_id', dataType: 'STRING', description: 'Stock keeping unit identifier', binding: 'SCM_DIM_PRODUCT.sku_id', isUniqueKey: true },
+                { id: 'prop_prod_name', name: 'product_name', dataType: 'STRING', description: 'Product display name', binding: 'SCM_DIM_PRODUCT.product_name' },
+                { id: 'prop_prod_category', name: 'category', dataType: 'STRING', description: 'Product category', binding: 'SCM_DIM_PRODUCT.category' },
+                { id: 'prop_prod_unit_cost', name: 'unit_cost', dataType: 'FLOAT', description: 'Cost per unit', binding: 'SCM_DIM_PRODUCT.unit_cost' },
+                { id: 'prop_prod_weight', name: 'weight_kg', dataType: 'FLOAT', description: 'Weight in kilograms', binding: 'SCM_DIM_PRODUCT.weight_kg' }
+            ],
+            bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_DIM_PRODUCT' }]
+        },
+        {
+            id: 'entity_inventory',
+            name: 'Inventory',
+            type: EntityType.FACT,
+            description: 'Current inventory levels across warehouses',
+            properties: [
+                { id: 'prop_inv_id', name: 'inventory_id', dataType: 'STRING', description: 'Unique inventory record ID', binding: 'SCM_FACT_INVENTORY.inventory_id', isUniqueKey: true },
+                { id: 'prop_inv_sku', name: 'sku_id', dataType: 'STRING', description: 'Product SKU', binding: 'SCM_FACT_INVENTORY.sku_id' },
+                { id: 'prop_inv_wh', name: 'warehouse_id', dataType: 'STRING', description: 'Warehouse location', binding: 'SCM_FACT_INVENTORY.warehouse_id' },
+                { id: 'prop_inv_qty', name: 'quantity_on_hand', dataType: 'INTEGER', description: 'Current stock quantity', binding: 'SCM_FACT_INVENTORY.quantity_on_hand' },
+                { id: 'prop_inv_reorder', name: 'reorder_point', dataType: 'INTEGER', description: 'Quantity threshold for reorder', binding: 'SCM_FACT_INVENTORY.reorder_point' },
+                { id: 'prop_inv_updated', name: 'last_updated', dataType: 'TIMESTAMP', description: 'Last inventory update timestamp', binding: 'SCM_FACT_INVENTORY.last_updated' }
+            ],
+            bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_FACT_INVENTORY' }]
+        },
+        {
+            id: 'entity_shipment',
+            name: 'Shipment',
+            type: EntityType.FACT,
+            description: 'Shipments and deliveries in transit',
+            properties: [
+                { id: 'prop_ship_id', name: 'shipment_id', dataType: 'STRING', description: 'Unique shipment tracking ID', binding: 'SCM_FACT_SHIPMENT.shipment_id', isUniqueKey: true },
+                { id: 'prop_ship_origin', name: 'origin_warehouse_id', dataType: 'STRING', description: 'Originating warehouse', binding: 'SCM_FACT_SHIPMENT.origin_warehouse_id' },
+                { id: 'prop_ship_dest', name: 'destination', dataType: 'STRING', description: 'Delivery destination', binding: 'SCM_FACT_SHIPMENT.destination' },
+                { id: 'prop_ship_carrier', name: 'carrier', dataType: 'STRING', description: 'Shipping carrier name', binding: 'SCM_FACT_SHIPMENT.carrier' },
+                { id: 'prop_ship_status', name: 'status', dataType: 'STRING', description: 'Current shipment status', binding: 'SCM_FACT_SHIPMENT.status' },
+                { id: 'prop_ship_date', name: 'ship_date', dataType: 'TIMESTAMP', description: 'Date shipment was dispatched', binding: 'SCM_FACT_SHIPMENT.ship_date' },
+                { id: 'prop_ship_eta', name: 'estimated_arrival', dataType: 'TIMESTAMP', description: 'Expected delivery date', binding: 'SCM_FACT_SHIPMENT.estimated_arrival' }
+            ],
+            bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_FACT_SHIPMENT' }]
+        },
+        {
+            id: 'entity_order',
+            name: 'Purchase Order',
+            type: EntityType.FACT,
+            description: 'Purchase orders placed with suppliers',
+            properties: [
+                { id: 'prop_po_id', name: 'po_id', dataType: 'STRING', description: 'Purchase order number', binding: 'SCM_FACT_PO.po_id', isUniqueKey: true },
+                { id: 'prop_po_supplier', name: 'supplier_id', dataType: 'STRING', description: 'Supplier fulfilling the order', binding: 'SCM_FACT_PO.supplier_id' },
+                { id: 'prop_po_sku', name: 'sku_id', dataType: 'STRING', description: 'Ordered product SKU', binding: 'SCM_FACT_PO.sku_id' },
+                { id: 'prop_po_qty', name: 'quantity', dataType: 'INTEGER', description: 'Quantity ordered', binding: 'SCM_FACT_PO.quantity' },
+                { id: 'prop_po_total', name: 'total_cost', dataType: 'FLOAT', description: 'Total order cost', binding: 'SCM_FACT_PO.total_cost' },
+                { id: 'prop_po_date', name: 'order_date', dataType: 'TIMESTAMP', description: 'Date order was placed', binding: 'SCM_FACT_PO.order_date' },
+                { id: 'prop_po_status', name: 'status', dataType: 'STRING', description: 'Order status: Pending, Confirmed, Shipped, Delivered', binding: 'SCM_FACT_PO.status' }
+            ],
+            bindings: [{ type: 'BIGQUERY', resource: 'project.scm_dataset.SCM_FACT_PO' }]
+        }
+    ];
+
+    const getSupplyChainRelationships = (): Relationship[] => [
+        {
+            id: 'rel_supplier_product',
+            sourceEntityId: 'entity_supplier',
+            targetEntityId: 'entity_product',
+            type: 'ONE_TO_MANY',
+            description: 'Supplier provides products',
+            label: 'supplies'
+        },
+        {
+            id: 'rel_product_inventory',
+            sourceEntityId: 'entity_product',
+            targetEntityId: 'entity_inventory',
+            type: 'ONE_TO_MANY',
+            description: 'Product has inventory records',
+            label: 'stocked as'
+        },
+        {
+            id: 'rel_warehouse_inventory',
+            sourceEntityId: 'entity_warehouse',
+            targetEntityId: 'entity_inventory',
+            type: 'ONE_TO_MANY',
+            description: 'Warehouse holds inventory',
+            label: 'stores'
+        },
+        {
+            id: 'rel_warehouse_shipment',
+            sourceEntityId: 'entity_warehouse',
+            targetEntityId: 'entity_shipment',
+            type: 'ONE_TO_MANY',
+            description: 'Warehouse originates shipments',
+            label: 'ships from'
+        },
+        {
+            id: 'rel_supplier_order',
+            sourceEntityId: 'entity_supplier',
+            targetEntityId: 'entity_order',
+            type: 'ONE_TO_MANY',
+            description: 'Supplier receives purchase orders',
+            label: 'receives'
+        },
+        {
+            id: 'rel_product_order',
+            sourceEntityId: 'entity_product',
+            targetEntityId: 'entity_order',
+            type: 'ONE_TO_MANY',
+            description: 'Product is ordered via purchase orders',
+            label: 'ordered in'
+        }
+    ];
+
     const handleImport = () => {
         setIsLoading(true);
         setTimeout(() => {
+            const modelName = importSource === 'looker' ? `Looker Model - ${projectName}` : 
+                      importSource === 'dbt' ? `DBT Model - ${projectName}` : 
+                      `Imported Model`;
+            
             const importedModel: SemanticModel = {
                 id: `imported_${Date.now()}`,
-                name: importSource === 'looker' ? `Looker Model - ${projectName}` : 
-                      importSource === 'dbt' ? `DBT Model - ${projectName}` : 
-                      `Imported Model`,
-                description: `Imported from ${importSource?.toUpperCase() || 'file'} on ${new Date().toLocaleDateString()}`,
-                entities: [],
-                relationships: [],
+                name: modelName,
+                description: `Imported from ${importSource?.toUpperCase() || 'file'} on ${new Date().toLocaleDateString()}. Supply chain analytics model with suppliers, warehouses, inventory, shipments, and purchase orders.`,
+                domain: 'Supply Chain',
+                entities: getSupplyChainEntities(),
+                relationships: getSupplyChainRelationships(),
                 createdAt: new Date(),
                 updatedAt: new Date()
             };
