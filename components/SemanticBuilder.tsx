@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Entity, SemanticModel, EntityType, Relationship, Property, AspectAssignment, GlossaryTerm, DescriptionHistory, PropertyType, EntityUpdateSuggestion, SuggestionStatus, SuggestionSource, SuggestionType } from '../types';
-import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download, Key, Edit3, MessageSquare, Send, Bot, User, Sparkles, Bell } from 'lucide-react';
+import { Plus, Database, Table as TableIcon, Columns, ArrowRight, Save, Wand2, X, Maximize2, Layers, ArrowLeft, GitCommit, Link, Pencil, Check, Rocket, ChevronDown, BarChart3, Settings2, PieChart, LineChart, Activity, Calendar, AlertCircle, TrendingUp, GripVertical, ExternalLink, ChevronRight, Minimize2, Search, FileText, BookOpen, Tag, Upload, Eye, Trash2, MoreVertical, Download, Key, Edit3, MessageSquare, Send, Bot, User, Sparkles, Bell, RotateCcw, Info } from 'lucide-react';
 import { suggestEntitiesFromDescription, generateAssistantResponse } from '../services/geminiService';
 import { WikiEditor } from './WikiEditor';
 import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
@@ -3235,6 +3235,17 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
     const [lookerProject, setLookerProject] = useState('');
     const [isDeploying, setIsDeploying] = useState(false);
     const [deployed, setDeployed] = useState(false);
+    const [deployDataAgent, setDeployDataAgent] = useState(false);
+    const [agentInstructions, setAgentInstructions] = useState(
+        `You are a helpful data assistant for the "${model.name}" semantic model.\n\n` +
+        `Your role is to help users understand and query data from this model. You have access to the following entities:\n` +
+        model.entities.map(e => `- ${e.name}: ${e.description || 'No description'}`).join('\n') +
+        `\n\nGuidelines:\n` +
+        `- Always provide accurate information based on the semantic model\n` +
+        `- Explain data relationships clearly\n` +
+        `- Suggest relevant queries when appropriate\n` +
+        `- Use business-friendly language`
+    );
 
     const targets = [
         {
@@ -3526,9 +3537,20 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                             <Check size={40} />
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">Deployment Successful!</h2>
-                        <p className="text-gray-600 mb-8">
+                        <p className="text-gray-600 mb-4">
                             Your semantic model "{model.name}" has been deployed to {targets.find(t => t.id === selectedTarget)?.name}.
                         </p>
+                        {deployDataAgent && (
+                            <div className="bg-blue-50 rounded-xl p-4 mb-6 text-left">
+                                <div className="flex items-center gap-2 text-blue-800 font-medium mb-1">
+                                    <Bot size={16} />
+                                    Data Agent Deployed
+                                </div>
+                                <p className="text-blue-600 text-sm">
+                                    Your AI data agent is ready to answer questions about your semantic model.
+                                </p>
+                            </div>
+                        )}
                         <button 
                             onClick={onBack} 
                             className="px-8 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
@@ -3721,6 +3743,74 @@ const DeploymentPage: React.FC<{ model: SemanticModel; onBack: () => void }> = (
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Data Agent Configuration */}
+                                    <div className="mt-6 pt-6 border-t border-gray-100">
+                                        <label className="flex items-center gap-3 cursor-pointer group">
+                                            <div className="relative">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={deployDataAgent}
+                                                    onChange={(e) => setDeployDataAgent(e.target.checked)}
+                                                    className="sr-only"
+                                                />
+                                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                                    deployDataAgent 
+                                                        ? 'bg-blue-600 border-blue-600' 
+                                                        : 'border-gray-300 group-hover:border-blue-400'
+                                                }`}>
+                                                    {deployDataAgent && <Check size={14} className="text-white" />}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Bot size={18} className={deployDataAgent ? 'text-blue-600' : 'text-gray-400'} />
+                                                <span className={`font-medium ${deployDataAgent ? 'text-gray-900' : 'text-gray-600'}`}>
+                                                    Deploy Data Agent
+                                                </span>
+                                            </div>
+                                        </label>
+                                        <p className="text-xs text-gray-500 mt-2 ml-8">
+                                            Enable an AI-powered data agent that can answer questions about your semantic model
+                                        </p>
+                                        
+                                        {deployDataAgent && (
+                                            <div className="mt-4 ml-0">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <label className="block text-sm font-medium text-gray-700">Agent Instructions</label>
+                                                    <button
+                                                        onClick={() => setAgentInstructions(
+                                                            `You are a helpful data assistant for the "${model.name}" semantic model.\n\n` +
+                                                            `Your role is to help users understand and query data from this model. You have access to the following entities:\n` +
+                                                            model.entities.map(e => `- ${e.name}: ${e.description || 'No description'}`).join('\n') +
+                                                            `\n\nGuidelines:\n` +
+                                                            `- Always provide accurate information based on the semantic model\n` +
+                                                            `- Explain data relationships clearly\n` +
+                                                            `- Suggest relevant queries when appropriate\n` +
+                                                            `- Use business-friendly language`
+                                                        )}
+                                                        className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                                                    >
+                                                        <RotateCcw size={12} />
+                                                        Reset to default
+                                                    </button>
+                                                </div>
+                                                <textarea
+                                                    value={agentInstructions}
+                                                    onChange={(e) => setAgentInstructions(e.target.value)}
+                                                    rows={8}
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-mono resize-none"
+                                                    placeholder="Enter custom instructions for the data agent..."
+                                                />
+                                                <div className="flex items-start gap-2 mt-2 text-xs text-gray-500">
+                                                    <Info size={14} className="shrink-0 mt-0.5" />
+                                                    <span>
+                                                        These instructions define how the data agent will respond to queries. 
+                                                        Include context about your data model and any specific behaviors you want the agent to follow.
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <div className="mt-6 pt-6 border-t border-gray-100">
                                         <button
