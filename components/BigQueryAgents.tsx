@@ -1,26 +1,82 @@
 import React, { useState } from 'react';
-import { Bot, Plus, Database, Home, Star, Users, Clock, Search, ChevronDown, ChevronRight, Sparkles, MessageSquare, FileText, LayoutGrid, GitBranch, FolderOpen, Link2, Settings, Layers } from 'lucide-react';
-import { DataAgent } from '../types';
+import { Bot, Plus, Database, Home, Star, Users, Clock, Search, ChevronDown, ChevronRight, Sparkles, MessageSquare, FileText, LayoutGrid, GitBranch, FolderOpen, Link2, Settings, Layers, Table } from 'lucide-react';
+import { SemanticModel } from '../types';
+
+const MOCK_BQ_SCHEMA: Record<string, Array<{ name: string, type: string }>> = {
+  'DWH_DIM_PROD': [
+    { name: 'sku_id', type: 'STRING' },
+    { name: 'product_name', type: 'STRING' },
+    { name: 'product_category', type: 'STRING' },
+    { name: 'unit_price', type: 'FLOAT' },
+    { name: 'cost_price', type: 'FLOAT' },
+    { name: 'created_at', type: 'TIMESTAMP' },
+    { name: 'is_active', type: 'BOOLEAN' },
+    { name: 'brand', type: 'STRING' },
+    { name: 'supplier_id', type: 'STRING' }
+  ],
+  'OLTP_INV_SKU': [
+    { name: 'sku_id', type: 'STRING' },
+    { name: 'warehouse_id', type: 'STRING' },
+    { name: 'current_stock_qty', type: 'INTEGER' },
+    { name: 'reserved_stock_qty', type: 'INTEGER' },
+    { name: 'last_updated_ts', type: 'TIMESTAMP' },
+    { name: 'reorder_point', type: 'INTEGER' }
+  ],
+  'DWH_FACT_SALES': [
+    { name: 'transaction_id', type: 'STRING' },
+    { name: 'sku_id', type: 'STRING' },
+    { name: 'customer_id', type: 'STRING' },
+    { name: 'sale_date', type: 'DATE' },
+    { name: 'quantity', type: 'INTEGER' },
+    { name: 'total_amount', type: 'FLOAT' }
+  ],
+  'DWH_DIM_CUSTOMER': [
+    { name: 'customer_id', type: 'STRING' },
+    { name: 'customer_name', type: 'STRING' },
+    { name: 'email', type: 'STRING' },
+    { name: 'region', type: 'STRING' },
+    { name: 'created_at', type: 'TIMESTAMP' }
+  ],
+  'DWH_DIM_SUPPLIER': [
+    { name: 'supplier_id', type: 'STRING' },
+    { name: 'supplier_name', type: 'STRING' },
+    { name: 'contact_email', type: 'STRING' },
+    { name: 'country', type: 'STRING' }
+  ]
+};
 
 interface BigQueryAgentsProps {
   onBack?: () => void;
+  models?: SemanticModel[];
 }
 
-export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack }) => {
+export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack, models = [] }) => {
   const [activeTab, setActiveTab] = useState<'agents' | 'data_sources'>('data_sources');
   const [dataSourceType, setDataSourceType] = useState<'tables' | 'semantic_graphs'>('semantic_graphs');
-  const [selectedRegion, setSelectedRegion] = useState('US');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState({ googleMerch: true });
 
-  const semanticGraphs = [
-    { id: 'sg_1', name: 'products', dataset: 'dataset_name', description: 'Semantic graph description', project: 'project.name', lastModified: 'May 22, 2020', region: 'US' },
-    { id: 'sg_2', name: 'inventory', dataset: 'dataset_name', description: 'Semantic graph description', project: 'project.name', lastModified: 'May 22, 2020', region: 'US' },
-    { id: 'sg_3', name: 'customers', dataset: 'dataset_name', description: 'Semantic graph description', project: 'project.name', lastModified: 'May 22, 2020', region: 'US' },
-    { id: 'sg_4', name: 'products_02', dataset: 'dataset_name', description: 'Semantic graph description', project: 'project.name', lastModified: 'May 22, 2020', region: 'EU' },
-    { id: 'sg_5', name: 'customers_int', dataset: 'dataset_name', description: 'Table description', project: 'project.name', lastModified: 'May 22, 2020', region: 'EU' },
-  ];
+  const semanticGraphs = models.map(model => ({
+    id: model.id,
+    name: model.name,
+    dataset: 'dataset_name',
+    description: model.description || 'Semantic graph description',
+    project: 'project.name',
+    lastModified: new Date(model.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    region: 'US'
+  }));
+
+  const tables = Object.keys(MOCK_BQ_SCHEMA).map(tableName => ({
+    id: `table_${tableName}`,
+    name: tableName,
+    dataset: 'bigquery-dataset',
+    description: `Table with ${MOCK_BQ_SCHEMA[tableName].length} columns`,
+    project: 'project.name',
+    lastModified: 'Dec 15, 2024',
+    region: 'US',
+    columnCount: MOCK_BQ_SCHEMA[tableName].length
+  }));
 
   const agents = [
     { id: 'agent_1', name: 'Sales Analytics Agent', description: 'Answers questions about sales data' },
@@ -51,6 +107,11 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack }) => {
     { icon: Database, label: 'Datasets', active: false },
     { icon: Link2, label: 'Connections', active: false },
   ];
+
+  const currentData = dataSourceType === 'semantic_graphs' ? semanticGraphs : tables;
+  const filteredData = currentData.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex h-full bg-white">
@@ -189,7 +250,7 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack }) => {
                 <div className="flex items-center gap-4 mb-4">
                   <div className="flex bg-gray-100 rounded-md p-1">
                     <button
-                      onClick={() => setDataSourceType('tables')}
+                      onClick={() => { setDataSourceType('tables'); setSelectedItems([]); }}
                       className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
                         dataSourceType === 'tables'
                           ? 'bg-white text-gray-900 shadow-sm'
@@ -199,7 +260,7 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack }) => {
                       Tables
                     </button>
                     <button
-                      onClick={() => setDataSourceType('semantic_graphs')}
+                      onClick={() => { setDataSourceType('semantic_graphs'); setSelectedItems([]); }}
                       className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
                         dataSourceType === 'semantic_graphs'
                           ? 'bg-white text-gray-900 shadow-sm'
@@ -211,19 +272,8 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack }) => {
                   </div>
                 </div>
 
-                {/* Region and Search */}
+                {/* Search */}
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Region <span className="text-red-500">*</span></span>
-                    <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 rounded-md border border-gray-200">
-                      <span className="text-sm font-medium">{selectedRegion}</span>
-                      <ChevronDown size={14} className="text-gray-400" />
-                    </div>
-                    <button className="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 text-sm">
-                      ?
-                    </button>
-                  </div>
-
                   <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 relative">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -231,7 +281,7 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack }) => {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search for semantic graphs"
+                        placeholder={`Search for ${dataSourceType === 'semantic_graphs' ? 'semantic graphs' : 'tables'}`}
                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
@@ -251,7 +301,9 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack }) => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="w-10 px-3 py-3"></th>
-                          <th className="text-left px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Semantic graph name</th>
+                          <th className="text-left px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {dataSourceType === 'semantic_graphs' ? 'Semantic graph name' : 'Table name'}
+                          </th>
                           <th className="text-left px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                           <th className="text-left px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
                           <th className="text-left px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Last modified</th>
@@ -259,40 +311,54 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack }) => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 bg-white">
-                        {semanticGraphs.map((graph) => (
-                          <tr 
-                            key={graph.id} 
-                            className={`hover:bg-gray-50 cursor-pointer ${selectedItems.includes(graph.id) ? 'bg-blue-50' : ''}`}
-                            onClick={() => toggleSelection(graph.id)}
-                          >
-                            <td className="px-3 py-3">
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                                selectedItems.includes(graph.id) 
-                                  ? 'border-blue-600 bg-blue-600' 
-                                  : 'border-gray-300'
-                              }`}>
-                                {selectedItems.includes(graph.id) && (
-                                  <svg width="10" height="10" viewBox="0 0 12 12" fill="white">
-                                    <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" fill="none" />
-                                  </svg>
-                                )}
-                              </div>
+                        {filteredData.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-3 py-8 text-center text-gray-500">
+                              {dataSourceType === 'semantic_graphs' 
+                                ? 'No semantic graphs available. Create one in the Semantic Model builder.'
+                                : 'No tables found.'}
                             </td>
-                            <td className="px-3 py-3">
-                              <div className="flex items-center gap-2">
-                                <Sparkles size={14} className="text-purple-500" />
-                                <div>
-                                  <div className="text-sm font-medium text-blue-600 hover:underline">{graph.name}</div>
-                                  <div className="text-xs text-gray-500">Dataset: {graph.dataset}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 text-sm text-gray-600">{graph.description}</td>
-                            <td className="px-3 py-3 text-sm text-gray-600">{graph.project}</td>
-                            <td className="px-3 py-3 text-sm text-gray-600">{graph.lastModified}</td>
-                            <td className="px-3 py-3 text-sm text-gray-600">{graph.region}</td>
                           </tr>
-                        ))}
+                        ) : (
+                          filteredData.map((item) => (
+                            <tr 
+                              key={item.id} 
+                              className={`hover:bg-gray-50 cursor-pointer ${selectedItems.includes(item.id) ? 'bg-blue-50' : ''}`}
+                              onClick={() => toggleSelection(item.id)}
+                            >
+                              <td className="px-3 py-3">
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                  selectedItems.includes(item.id) 
+                                    ? 'border-blue-600 bg-blue-600' 
+                                    : 'border-gray-300'
+                                }`}>
+                                  {selectedItems.includes(item.id) && (
+                                    <svg width="10" height="10" viewBox="0 0 12 12" fill="white">
+                                      <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" fill="none" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-3">
+                                <div className="flex items-center gap-2">
+                                  {dataSourceType === 'semantic_graphs' ? (
+                                    <Sparkles size={14} className="text-purple-500" />
+                                  ) : (
+                                    <Table size={14} className="text-blue-500" />
+                                  )}
+                                  <div>
+                                    <div className="text-sm font-medium text-blue-600 hover:underline">{item.name}</div>
+                                    <div className="text-xs text-gray-500">Dataset: {item.dataset}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 text-sm text-gray-600">{item.description}</td>
+                              <td className="px-3 py-3 text-sm text-gray-600">{item.project}</td>
+                              <td className="px-3 py-3 text-sm text-gray-600">{item.lastModified}</td>
+                              <td className="px-3 py-3 text-sm text-gray-600">{item.region}</td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>

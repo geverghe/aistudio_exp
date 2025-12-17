@@ -443,7 +443,10 @@ function App() {
                 <AgentChat model={activeModel} />
             )}
             {currentView === ViewState.BIGQUERY && (
-                <BigQueryAgents onBack={() => setCurrentView(ViewState.DASHBOARD)} />
+                <BigQueryAgents 
+                  onBack={() => setCurrentView(ViewState.DASHBOARD)} 
+                  models={modelCollection.models}
+                />
             )}
         </main>
       </div>
