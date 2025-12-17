@@ -407,7 +407,7 @@ function App() {
         {currentView !== ViewState.BIGQUERY && (
           <SideNav currentView={currentView} onNavigate={setCurrentView} />
         )}
-        <main className="flex-1 overflow-auto relative">
+        <main className={`flex-1 relative ${currentView === ViewState.BIGQUERY ? 'overflow-hidden' : 'overflow-auto'}`}>
             {currentView === ViewState.DASHBOARD && <Dashboard />}
             {currentView === ViewState.SEMANTIC_MODELER && (
                 <SemanticBuilder 
