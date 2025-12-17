@@ -162,42 +162,58 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
 
   const baseNodePositions = useMemo(() => {
     const positions: Record<string, NodePosition> = {};
-    const categoryOrder = Object.keys(CATEGORY_COLORS);
-    const categoryAngles: Record<string, number> = {};
+    const categoryOrder = Object.keys(CATEGORY_COLORS).filter(c => c !== 'Other');
     
-    categoryOrder.forEach((cat, idx) => {
-      categoryAngles[cat] = (idx / categoryOrder.length) * 2 * Math.PI - Math.PI / 2;
+    const nodeWidth = 220;
+    const nodeHeight = 90;
+    const nodesPerRow = 3;
+    const categoryGapX = 100;
+    const categoryGapY = 150;
+    
+    const categoriesPerRow = 2;
+    
+    categoryOrder.forEach((category, catIdx) => {
+      const catRow = Math.floor(catIdx / categoriesPerRow);
+      const catCol = catIdx % categoriesPerRow;
+      
+      const categoryEntities = filteredEntities.filter(e => getEntityCategory(e.id) === category);
+      const categoryRows = Math.ceil(categoryEntities.length / nodesPerRow);
+      const categoryHeight = categoryRows * nodeHeight;
+      
+      const categoryStartX = catCol * (nodesPerRow * nodeWidth + categoryGapX) + 100;
+      const categoryStartY = catRow * (4 * nodeHeight + categoryGapY) + 50;
+      
+      categoryEntities.forEach((entity, idx) => {
+        const row = Math.floor(idx / nodesPerRow);
+        const col = idx % nodesPerRow;
+        
+        positions[entity.id] = {
+          x: categoryStartX + col * nodeWidth,
+          y: categoryStartY + row * nodeHeight,
+          category
+        };
+      });
     });
 
-    const centerX = 600;
-    const centerY = 400;
-    const categoryRadius = 320;
-    const nodeRadius = 120;
-
-    filteredEntities.forEach(entity => {
-      const category = getEntityCategory(entity.id);
-      const entitiesInCategory = filteredEntities.filter(e => getEntityCategory(e.id) === category);
-      const indexInCategory = entitiesInCategory.findIndex(e => e.id === entity.id);
-      const totalInCategory = entitiesInCategory.length;
+    const otherEntities = filteredEntities.filter(e => getEntityCategory(e.id) === 'Other');
+    if (otherEntities.length > 0) {
+      const lastCatIdx = categoryOrder.length;
+      const catRow = Math.floor(lastCatIdx / categoriesPerRow);
+      const catCol = lastCatIdx % categoriesPerRow;
+      const categoryStartX = catCol * (nodesPerRow * nodeWidth + categoryGapX) + 100;
+      const categoryStartY = catRow * (4 * nodeHeight + categoryGapY) + 50;
       
-      const categoryAngle = categoryAngles[category] || 0;
-      const categoryCenterX = centerX + Math.cos(categoryAngle) * categoryRadius;
-      const categoryCenterY = centerY + Math.sin(categoryAngle) * categoryRadius;
-      
-      const angleSpread = Math.min(Math.PI / 3, (totalInCategory * 0.15));
-      const startAngle = categoryAngle - angleSpread / 2;
-      const angleStep = totalInCategory > 1 ? angleSpread / (totalInCategory - 1) : 0;
-      const nodeAngle = startAngle + indexInCategory * angleStep;
-      
-      const radiusVariation = (indexInCategory % 3) * 25;
-      const effectiveRadius = nodeRadius + radiusVariation;
-      
-      positions[entity.id] = {
-        x: categoryCenterX + Math.cos(nodeAngle) * effectiveRadius,
-        y: categoryCenterY + Math.sin(nodeAngle) * effectiveRadius,
-        category
-      };
-    });
+      otherEntities.forEach((entity, idx) => {
+        const row = Math.floor(idx / nodesPerRow);
+        const col = idx % nodesPerRow;
+        
+        positions[entity.id] = {
+          x: categoryStartX + col * nodeWidth,
+          y: categoryStartY + row * nodeHeight,
+          category: 'Other'
+        };
+      });
+    }
 
     return positions;
   }, [filteredEntities]);
