@@ -3144,9 +3144,9 @@ const ModelSettingsPage: React.FC<{
   onBack: () => void 
 }> = ({ model, setModel, onBack }) => {
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="absolute inset-0 flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-3xl mx-auto pb-8">
+        <div className="max-w-3xl mx-auto pb-12">
         {/* Header with back button */}
         <div className="flex items-center gap-4 mb-8">
           <button 
