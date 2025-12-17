@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Bot, Plus, Database, Home, Star, Users, Clock, Search, ChevronDown, ChevronRight, Sparkles, MessageSquare, FileText, LayoutGrid, GitBranch, FolderOpen, Link2, Settings, Layers, Table } from 'lucide-react';
 import { SemanticModel } from '../types';
+import { BigQueryConversation } from './BigQueryConversation';
 
 const MOCK_BQ_SCHEMA: Record<string, Array<{ name: string, type: string }>> = {
   'DWH_DIM_PROD': [
@@ -56,6 +57,8 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack, models =
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState({ googleMerch: true });
+  const [showConversation, setShowConversation] = useState(false);
+  const [selectedDataSource, setSelectedDataSource] = useState<{ id: string; name: string; type: 'table' | 'semantic_graph' } | null>(null);
 
   const semanticGraphs = models.map(model => ({
     id: model.id,
@@ -112,6 +115,30 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack, models =
   const filteredData = currentData.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleStartConversation = () => {
+    if (selectedItems.length > 0) {
+      const firstSelectedId = selectedItems[0];
+      const selectedItem = currentData.find(item => item.id === firstSelectedId);
+      if (selectedItem) {
+        setSelectedDataSource({
+          id: selectedItem.id,
+          name: selectedItem.name,
+          type: dataSourceType === 'semantic_graphs' ? 'semantic_graph' : 'table'
+        });
+        setShowConversation(true);
+      }
+    }
+  };
+
+  if (showConversation) {
+    return (
+      <BigQueryConversation 
+        onBack={() => setShowConversation(false)} 
+        selectedDataSource={selectedDataSource || undefined}
+      />
+    );
+  }
 
   return (
     <div className="flex h-full bg-white">
@@ -368,6 +395,7 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack, models =
                 <div className="mt-6">
                   <button
                     disabled={selectedItems.length === 0}
+                    onClick={handleStartConversation}
                     className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                       selectedItems.length > 0
                         ? 'bg-blue-600 text-white hover:bg-blue-700'
