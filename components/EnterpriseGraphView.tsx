@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { 
   ZoomIn, ZoomOut, Maximize2, Filter, Search, Layers, 
   ChevronDown, ChevronRight, Box, Database, BarChart3,
-  Move, Grid, List, Eye, EyeOff, Focus, Target
+  Move, Grid, List, Eye, EyeOff, Focus, Target, MessageSquare
 } from 'lucide-react';
 import { Entity, Relationship, EntityType } from '../types';
 
@@ -11,6 +11,7 @@ interface EnterpriseGraphViewProps {
   relationships: Relationship[];
   onSelectEntity?: (entity: Entity) => void;
   selectedEntityId?: string | null;
+  onOpenChat?: () => void;
 }
 
 interface NodePosition {
@@ -116,7 +117,8 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
   entities,
   relationships,
   onSelectEntity,
-  selectedEntityId
+  selectedEntityId,
+  onOpenChat
 }) => {
   const [zoom, setZoom] = useState(0.8);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -538,6 +540,19 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
             >
               <Move size={16} />
             </button>
+            {onOpenChat && (
+              <>
+                <div className="w-px h-4 bg-gray-300 mx-1" />
+                <button
+                  onClick={onOpenChat}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-md hover:from-purple-700 hover:to-indigo-700 transition-all"
+                  title="Talk to Your Data"
+                >
+                  <MessageSquare size={14} />
+                  <span>Talk to Your Data</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 

@@ -687,6 +687,7 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
             relationships={model.relationships}
             onSelectEntity={(entity) => setSelection({ type: 'ENTITY', id: entity.id })}
             selectedEntityId={selection?.type === 'ENTITY' ? selection.id : null}
+            onOpenChat={() => setIsChatOpen(true)}
           />
         ) : (
           <GraphView 
@@ -701,25 +702,17 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
           />
         )}
         
-        {/* Floating Actions */}
-        <div className="absolute top-4 right-4 flex gap-2 z-10">
-            <button 
-                onClick={() => setIsChatOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all"
-            >
-                <MessageSquare size={16} />
-                Talk to Your Data
-            </button>
-{/* Deploy button hidden for presentation
-            <button 
-                onClick={() => setViewMode('DEPLOY')}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
-            >
-                <Rocket size={16} />
-                Deploy
-            </button>
-*/}
-        </div>
+        {model.entities.length < 20 && (
+          <div className="absolute top-4 right-4 flex gap-2 z-10">
+              <button 
+                  onClick={() => setIsChatOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all"
+              >
+                  <MessageSquare size={16} />
+                  Talk to Your Data
+              </button>
+          </div>
+        )}
       </div>
 
       {/* Talk to Your Data Chat Panel */}
