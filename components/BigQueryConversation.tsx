@@ -350,7 +350,7 @@ Provide a brief, helpful response explaining what query you would write and what
                 <h3 className="text-xl font-medium text-gray-900 mb-2">Ask a question about your data</h3>
                 <p className="text-gray-500 mb-6">I can help you analyze {selectedDataSource?.name || 'your data'}</p>
                 <div className="flex flex-wrap gap-2 justify-center">
-                  {['Show me sales by city', 'What are the top products?', 'Show monthly trends', 'Check inventory levels'].map((suggestion) => (
+                  {['Show me rides by city', 'What are the top cities?', 'Show monthly trends', 'Check rides / vehicle'].map((suggestion) => (
                     <button
                       key={suggestion}
                       onClick={() => setInputValue(suggestion)}
