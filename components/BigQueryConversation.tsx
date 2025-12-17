@@ -234,7 +234,7 @@ Provide a brief, helpful response explaining what query you would write and what
   };
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex h-full bg-white overflow-hidden">
       {/* Left Icon Sidebar */}
       <div className="w-12 bg-gray-50 border-r border-gray-200 flex flex-col items-center py-3 gap-1">
         <button className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mb-1">
@@ -265,7 +265,7 @@ Provide a brief, helpful response explaining what query you would write and what
       </div>
 
       {/* Conversations Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-64 bg-white border-r border-gray-200 flex flex-col min-h-0">
         {/* Tabs */}
         <div className="flex border-b border-gray-200">
           <button
@@ -323,7 +323,7 @@ Provide a brief, helpful response explaining what query you would write and what
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Header */}
         <div className="h-14 border-b border-gray-200 flex items-center justify-between px-6">
           <h2 className="text-lg font-medium text-blue-600">{activeConversation?.name || 'New Conversation'}</h2>
