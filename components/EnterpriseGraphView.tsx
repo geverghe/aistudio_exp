@@ -164,56 +164,48 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
     const positions: Record<string, NodePosition> = {};
     const categoryOrder = Object.keys(CATEGORY_COLORS).filter(c => c !== 'Other');
     
-    const nodeWidth = 220;
-    const nodeHeight = 90;
-    const nodesPerRow = 3;
-    const categoryGapX = 100;
-    const categoryGapY = 150;
-    
-    const categoriesPerRow = 2;
-    
+    const centerX = 800;
+    const centerY = 600;
+    const baseRadius = 450;
+    const minNodeSpacing = 100;
+
     categoryOrder.forEach((category, catIdx) => {
-      const catRow = Math.floor(catIdx / categoriesPerRow);
-      const catCol = catIdx % categoriesPerRow;
-      
+      const categoryAngle = (catIdx / categoryOrder.length) * 2 * Math.PI - Math.PI / 2;
       const categoryEntities = filteredEntities.filter(e => getEntityCategory(e.id) === category);
-      const categoryRows = Math.ceil(categoryEntities.length / nodesPerRow);
-      const categoryHeight = categoryRows * nodeHeight;
+      const totalInCategory = categoryEntities.length;
       
-      const categoryStartX = catCol * (nodesPerRow * nodeWidth + categoryGapX) + 100;
-      const categoryStartY = catRow * (4 * nodeHeight + categoryGapY) + 50;
+      if (totalInCategory === 0) return;
+      
+      const nodesPerRing = 5;
+      const ringSpacing = 110;
       
       categoryEntities.forEach((entity, idx) => {
-        const row = Math.floor(idx / nodesPerRow);
-        const col = idx % nodesPerRow;
+        const ringIndex = Math.floor(idx / nodesPerRing);
+        const posInRing = idx % nodesPerRing;
+        const nodesInThisRing = Math.min(nodesPerRing, totalInCategory - ringIndex * nodesPerRing);
+        
+        const ringRadius = baseRadius + ringIndex * ringSpacing;
+        const angleSpread = Math.PI / 4;
+        const startAngle = categoryAngle - angleSpread / 2;
+        const angleStep = nodesInThisRing > 1 ? angleSpread / (nodesInThisRing - 1) : 0;
+        const nodeAngle = startAngle + posInRing * angleStep;
         
         positions[entity.id] = {
-          x: categoryStartX + col * nodeWidth,
-          y: categoryStartY + row * nodeHeight,
+          x: centerX + Math.cos(nodeAngle) * ringRadius,
+          y: centerY + Math.sin(nodeAngle) * ringRadius,
           category
         };
       });
     });
 
     const otherEntities = filteredEntities.filter(e => getEntityCategory(e.id) === 'Other');
-    if (otherEntities.length > 0) {
-      const lastCatIdx = categoryOrder.length;
-      const catRow = Math.floor(lastCatIdx / categoriesPerRow);
-      const catCol = lastCatIdx % categoriesPerRow;
-      const categoryStartX = catCol * (nodesPerRow * nodeWidth + categoryGapX) + 100;
-      const categoryStartY = catRow * (4 * nodeHeight + categoryGapY) + 50;
-      
-      otherEntities.forEach((entity, idx) => {
-        const row = Math.floor(idx / nodesPerRow);
-        const col = idx % nodesPerRow;
-        
-        positions[entity.id] = {
-          x: categoryStartX + col * nodeWidth,
-          y: categoryStartY + row * nodeHeight,
-          category: 'Other'
-        };
-      });
-    }
+    otherEntities.forEach((entity, idx) => {
+      positions[entity.id] = {
+        x: centerX + 200 + (idx % 3) * 220,
+        y: centerY + 200 + Math.floor(idx / 3) * 100,
+        category: 'Other'
+      };
+    });
 
     return positions;
   }, [filteredEntities]);
