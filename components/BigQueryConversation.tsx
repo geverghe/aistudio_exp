@@ -1,20 +1,28 @@
 import React, { useState } from 'react';
-import { Bot, Plus, Search, ChevronLeft, Settings, Trash2, Send, ChevronDown, HelpCircle, BarChart3, Table, MessageSquare, Sparkles, FileText, Database, Layers, MoreVertical } from 'lucide-react';
+import { Bot, Plus, Search, ChevronLeft, Settings, Trash2, Send, ChevronDown, HelpCircle, BarChart3, Sparkles, FileText, Database, Layers, MoreVertical, Loader2 } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+interface QueryResult {
+  columns: string[];
+  rows: Array<Record<string, string | number>>;
+}
+
+interface ChartData {
+  title: string;
+  labels: string[];
+  values: number[];
+}
 
 interface ConversationMessage {
   id: string;
   type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  queryResult?: {
-    columns: string[];
-    rows: Array<Record<string, string | number>>;
-  };
-  chartData?: {
-    title: string;
-    labels: string[];
-    values: number[];
-  };
+  isLoading?: boolean;
+  queryResult?: QueryResult;
+  chartData?: ChartData;
 }
 
 interface Conversation {
@@ -30,105 +38,200 @@ interface BigQueryConversationProps {
   selectedDataSource?: { id: string; name: string; type: 'table' | 'semantic_graph' };
 }
 
+const generateMockDataForQuestion = (question: string): { queryResult?: QueryResult; chartData?: ChartData } => {
+  const lowerQuestion = question.toLowerCase();
+  
+  if (lowerQuestion.includes('city') || lowerQuestion.includes('region') || lowerQuestion.includes('location')) {
+    return {
+      queryResult: {
+        columns: ['City', 'Total Sales'],
+        rows: [
+          { City: 'Boston', 'Total Sales': 51287 },
+          { City: 'Seattle', 'Total Sales': 48298 },
+          { City: 'New York', 'Total Sales': 42156 },
+          { City: 'Chicago', 'Total Sales': 38421 },
+          { City: 'Los Angeles', 'Total Sales': 35892 },
+        ]
+      },
+      chartData: {
+        title: 'Sales by City',
+        labels: ['Boston', 'Seattle', 'New York', 'Chicago', 'Los Angeles'],
+        values: [51287, 48298, 42156, 38421, 35892]
+      }
+    };
+  }
+  
+  if (lowerQuestion.includes('product') || lowerQuestion.includes('category') || lowerQuestion.includes('item')) {
+    return {
+      queryResult: {
+        columns: ['Product Category', 'Revenue'],
+        rows: [
+          { 'Product Category': 'Electronics', Revenue: 125000 },
+          { 'Product Category': 'Clothing', Revenue: 98500 },
+          { 'Product Category': 'Home & Garden', Revenue: 76200 },
+          { 'Product Category': 'Sports', Revenue: 54300 },
+        ]
+      },
+      chartData: {
+        title: 'Revenue by Product Category',
+        labels: ['Electronics', 'Clothing', 'Home & Garden', 'Sports'],
+        values: [125000, 98500, 76200, 54300]
+      }
+    };
+  }
+  
+  if (lowerQuestion.includes('month') || lowerQuestion.includes('time') || lowerQuestion.includes('trend') || lowerQuestion.includes('year')) {
+    return {
+      queryResult: {
+        columns: ['Month', 'Sales'],
+        rows: [
+          { Month: 'January', Sales: 42000 },
+          { Month: 'February', Sales: 38500 },
+          { Month: 'March', Sales: 51200 },
+          { Month: 'April', Sales: 48900 },
+          { Month: 'May', Sales: 55600 },
+          { Month: 'June', Sales: 62100 },
+        ]
+      },
+      chartData: {
+        title: 'Monthly Sales Trend',
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        values: [42000, 38500, 51200, 48900, 55600, 62100]
+      }
+    };
+  }
+  
+  if (lowerQuestion.includes('inventory') || lowerQuestion.includes('stock') || lowerQuestion.includes('warehouse')) {
+    return {
+      queryResult: {
+        columns: ['Warehouse', 'Stock Level', 'Status'],
+        rows: [
+          { Warehouse: 'West Coast', 'Stock Level': 15420, Status: 'Healthy' },
+          { Warehouse: 'East Coast', 'Stock Level': 12350, Status: 'Healthy' },
+          { Warehouse: 'Central', 'Stock Level': 8900, Status: 'Low' },
+          { Warehouse: 'South', 'Stock Level': 11200, Status: 'Healthy' },
+        ]
+      }
+    };
+  }
+  
+  return {
+    queryResult: {
+      columns: ['Metric', 'Value'],
+      rows: [
+        { Metric: 'Total Records', Value: 15234 },
+        { Metric: 'Average Value', Value: 856.42 },
+        { Metric: 'Max Value', Value: 12500 },
+        { Metric: 'Min Value', Value: 25 },
+      ]
+    }
+  };
+};
+
 export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBack, selectedDataSource }) => {
   const [activeTab, setActiveTab] = useState<'conversations' | 'agent_catalog'>('conversations');
-  const [selectedConversation, setSelectedConversation] = useState<string>('conv_1');
+  const [selectedConversation, setSelectedConversation] = useState<string>('conv_new');
   const [inputValue, setInputValue] = useState('');
   const [chartView, setChartView] = useState<'chart' | 'table'>('chart');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const [conversations, setConversations] = useState<Conversation[]>([
     {
-      id: 'conv_1',
-      name: 'Product inventory',
-      icon: 'E',
-      iconColor: 'bg-blue-500',
-      messages: [
-        {
-          id: 'msg_1',
-          type: 'user',
-          content: 'Show me total sweaters sold by city',
-          timestamp: new Date()
-        },
-        {
-          id: 'msg_2',
-          type: 'assistant',
-          content: 'I\'ll write a query for the question: "Calculate total sweaters sold by city".',
-          timestamp: new Date(),
-          queryResult: {
-            columns: ['City', 'Total Sweaters Sold'],
-            rows: [
-              { City: 'Boston', 'Total Sweaters Sold': 51287 },
-              { City: 'Seattle', 'Total Sweaters Sold': 48298 },
-              { City: 'New York', 'Total Sweaters Sold': 42156 },
-              { City: 'Chicago', 'Total Sweaters Sold': 38421 },
-              { City: 'Los Angeles', 'Total Sweaters Sold': 35892 },
-              { City: 'Denver', 'Total Sweaters Sold': 28764 },
-              { City: 'Miami', 'Total Sweaters Sold': 22341 },
-              { City: 'Phoenix', 'Total Sweaters Sold': 18567 },
-            ]
-          },
-          chartData: {
-            title: 'Total sweaters sold by city',
-            labels: ['Boston', 'Seattle', 'New York', 'Chicago', 'Los Angeles', 'Denver', 'Miami', 'Phoenix'],
-            values: [51287, 48298, 42156, 38421, 35892, 28764, 22341, 18567]
-          }
-        }
-      ]
+      id: 'conv_new',
+      name: selectedDataSource?.name || 'New Conversation',
+      icon: selectedDataSource?.type === 'semantic_graph' ? 'S' : 'T',
+      iconColor: selectedDataSource?.type === 'semantic_graph' ? 'bg-purple-500' : 'bg-blue-500',
+      messages: []
     },
     { id: 'conv_2', name: 'EMEA sales market', icon: 'A', iconColor: 'bg-orange-500', messages: [] },
-    { id: 'conv_3', name: 'Customer report 2024', icon: '📊', iconColor: 'bg-gray-100', messages: [] },
-    { id: 'conv_4', name: 'Regional customers', icon: '👥', iconColor: 'bg-gray-100', messages: [] },
-    { id: 'conv_5', name: 'Regional quarterly sales', icon: 'Q', iconColor: 'bg-green-500', messages: [] },
-    { id: 'conv_6', name: 'Product and location forecast', icon: '📈', iconColor: 'bg-gray-100', messages: [] },
-    { id: 'conv_7', name: 'Sales for product by category', icon: 'P', iconColor: 'bg-purple-500', messages: [] },
+    { id: 'conv_3', name: 'Customer report 2024', icon: 'C', iconColor: 'bg-green-500', messages: [] },
+    { id: 'conv_4', name: 'Regional customers', icon: 'R', iconColor: 'bg-indigo-500', messages: [] },
+    { id: 'conv_5', name: 'Regional quarterly sales', icon: 'Q', iconColor: 'bg-pink-500', messages: [] },
   ]);
 
   const activeConversation = conversations.find(c => c.id === selectedConversation);
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim() || !activeConversation) return;
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || !activeConversation || isGenerating) return;
 
-    const newMessage: ConversationMessage = {
+    const userMessage: ConversationMessage = {
       id: `msg_${Date.now()}`,
       type: 'user',
       content: inputValue,
       timestamp: new Date()
     };
 
+    const loadingMessage: ConversationMessage = {
+      id: `msg_${Date.now() + 1}`,
+      type: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      isLoading: true
+    };
+
     setConversations(prev => prev.map(conv => 
       conv.id === selectedConversation 
-        ? { ...conv, messages: [...conv.messages, newMessage] }
+        ? { ...conv, messages: [...conv.messages, userMessage, loadingMessage] }
         : conv
     ));
+    
+    const question = inputValue;
     setInputValue('');
+    setIsGenerating(true);
 
-    setTimeout(() => {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: `You are a data analyst assistant. The user is querying data from "${selectedDataSource?.name || 'a data source'}".
+
+User question: "${question}"
+
+Provide a brief, helpful response explaining what query you would write and what insights the data shows. Keep it concise (2-3 sentences). Do not use markdown formatting.`
+      });
+
+      const mockData = generateMockDataForQuestion(question);
+      
       const responseMessage: ConversationMessage = {
-        id: `msg_${Date.now() + 1}`,
+        id: `msg_${Date.now() + 2}`,
         type: 'assistant',
-        content: `I'll analyze your request: "${inputValue}"`,
+        content: response.text || "I've analyzed your request and here are the results.",
         timestamp: new Date(),
-        queryResult: {
-          columns: ['Category', 'Value'],
-          rows: [
-            { Category: 'Result 1', Value: 12500 },
-            { Category: 'Result 2', Value: 9800 },
-            { Category: 'Result 3', Value: 7600 },
-          ]
-        }
+        ...mockData
       };
 
       setConversations(prev => prev.map(conv => 
         conv.id === selectedConversation 
-          ? { ...conv, messages: [...conv.messages, responseMessage] }
+          ? { ...conv, messages: conv.messages.filter(m => !m.isLoading).concat(responseMessage) }
           : conv
       ));
-    }, 1000);
+    } catch (error) {
+      console.error('Error generating response:', error);
+      const errorMessage: ConversationMessage = {
+        id: `msg_${Date.now() + 2}`,
+        type: 'assistant',
+        content: "I encountered an issue processing your request. Here's the data based on your query.",
+        timestamp: new Date(),
+        ...generateMockDataForQuestion(question)
+      };
+
+      setConversations(prev => prev.map(conv => 
+        conv.id === selectedConversation 
+          ? { ...conv, messages: conv.messages.filter(m => !m.isLoading).concat(errorMessage) }
+          : conv
+      ));
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const maxValue = activeConversation?.messages[1]?.chartData 
-    ? Math.max(...activeConversation.messages[1].chartData.values) 
-    : 0;
+  const getMaxValue = (messages: ConversationMessage[]) => {
+    for (const msg of messages) {
+      if (msg.chartData) {
+        return Math.max(...msg.chartData.values);
+      }
+    }
+    return 0;
+  };
 
   return (
     <div className="flex h-full bg-white">
@@ -207,10 +310,8 @@ export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBa
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-medium ${
-                conv.iconColor.includes('bg-') ? conv.iconColor : 'bg-gray-100'
-              } ${conv.iconColor.includes('500') ? 'text-white' : 'text-gray-700'}`}>
-                {conv.icon.length === 1 ? conv.icon : <span className="text-sm">{conv.icon}</span>}
+              <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-medium ${conv.iconColor} text-white`}>
+                {conv.icon}
               </div>
               <span className="flex-1 text-left truncate">{conv.name}</span>
               <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded">
@@ -241,6 +342,27 @@ export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBa
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto space-y-6">
+            {activeConversation?.messages.length === 0 && (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Sparkles size={28} className="text-blue-600" />
+                </div>
+                <h3 className="text-xl font-medium text-gray-900 mb-2">Ask a question about your data</h3>
+                <p className="text-gray-500 mb-6">I can help you analyze {selectedDataSource?.name || 'your data'}</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {['Show me sales by city', 'What are the top products?', 'Show monthly trends', 'Check inventory levels'].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => setInputValue(suggestion)}
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm text-gray-700 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {activeConversation?.messages.map((message) => (
               <div key={message.id}>
                 {message.type === 'user' ? (
@@ -251,6 +373,13 @@ export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBa
                     <div className="bg-gray-700 text-white px-4 py-2 rounded-2xl rounded-tl-sm max-w-md">
                       {message.content}
                     </div>
+                  </div>
+                ) : message.isLoading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Loader2 size={16} className="text-blue-600 animate-spin" />
+                    </div>
+                    <span className="text-gray-500">Analyzing your data...</span>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -289,7 +418,7 @@ export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBa
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                              {message.queryResult.rows.slice(0, 3).map((row, idx) => (
+                              {message.queryResult.rows.slice(0, 5).map((row, idx) => (
                                 <tr key={idx} className="hover:bg-gray-50">
                                   {message.queryResult!.columns.map((col, colIdx) => (
                                     <td key={colIdx} className={`px-4 py-3 text-sm ${colIdx === 0 ? 'text-blue-600 text-left' : 'text-gray-900 text-right'}`}>
@@ -298,15 +427,6 @@ export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBa
                                   ))}
                                 </tr>
                               ))}
-                              {message.queryResult.rows.length > 3 && (
-                                <tr>
-                                  <td colSpan={message.queryResult.columns.length} className="px-4 py-2 text-center">
-                                    <button className="text-gray-400 hover:text-gray-600">
-                                      <ChevronDown size={16} />
-                                    </button>
-                                  </td>
-                                </tr>
-                              )}
                             </tbody>
                           </table>
                         </div>
@@ -316,8 +436,6 @@ export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBa
                     {/* Chart */}
                     {message.chartData && (
                       <div className="ml-11">
-                        <p className="text-gray-600 mb-3">Create a bar chart showing the total sweaters by city.</p>
-                        
                         <div className="border border-gray-200 rounded-lg p-4">
                           <div className="flex items-center justify-between mb-4">
                             <h4 className="font-medium text-gray-900">{message.chartData.title}</h4>
@@ -343,22 +461,19 @@ export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBa
 
                           {chartView === 'chart' ? (
                             <div className="h-64 flex items-end gap-2">
-                              {/* Y-axis labels */}
                               <div className="flex flex-col justify-between h-full text-xs text-gray-500 pr-2">
-                                <span>6M</span>
-                                <span>4M</span>
-                                <span>2M</span>
-                                <span></span>
+                                <span>{Math.round(Math.max(...message.chartData.values) / 1000)}K</span>
+                                <span>{Math.round(Math.max(...message.chartData.values) / 2000)}K</span>
+                                <span>0</span>
                               </div>
-                              {/* Bars */}
-                              <div className="flex-1 flex items-end justify-around gap-1 h-full border-l border-b border-gray-200 pl-2 pb-6">
+                              <div className="flex-1 flex items-end justify-around gap-2 h-full border-l border-b border-gray-200 pl-2 pb-8">
                                 {message.chartData.values.map((value, idx) => (
                                   <div key={idx} className="flex flex-col items-center flex-1">
                                     <div 
-                                      className="w-full max-w-12 bg-blue-500 rounded-t transition-all"
-                                      style={{ height: `${(value / maxValue) * 200}px` }}
+                                      className="w-full max-w-12 bg-blue-500 rounded-t transition-all hover:bg-blue-600"
+                                      style={{ height: `${(value / Math.max(...message.chartData!.values)) * 180}px` }}
                                     ></div>
-                                    <span className="text-xs text-gray-500 mt-2 transform -rotate-45 origin-top-left whitespace-nowrap">
+                                    <span className="text-xs text-gray-500 mt-2 text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-16">
                                       {message.chartData!.labels[idx]}
                                     </span>
                                   </div>
@@ -370,8 +485,8 @@ export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBa
                               <table className="w-full text-sm">
                                 <thead className="bg-gray-50">
                                   <tr>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-600">City</th>
-                                    <th className="px-4 py-2 text-right font-medium text-gray-600">Sweaters Sold</th>
+                                    <th className="px-4 py-2 text-left font-medium text-gray-600">Label</th>
+                                    <th className="px-4 py-2 text-right font-medium text-gray-600">Value</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -402,15 +517,21 @@ export const BigQueryConversation: React.FC<BigQueryConversationProps> = ({ onBa
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
               placeholder="Ask a question"
-              className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isGenerating}
+              className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
             />
             <button 
               onClick={handleSendMessage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+              disabled={isGenerating || !inputValue.trim()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50"
             >
-              <Send size={18} />
+              {isGenerating ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Send size={18} />
+              )}
             </button>
           </div>
         </div>
