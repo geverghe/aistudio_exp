@@ -6,10 +6,11 @@ interface TopBarProps {
   suggestions?: EntityUpdateSuggestion[];
   onSuggestionClick?: () => void;
   onNavigateToBigQuery?: () => void;
+  onNavigateToDataplex?: () => void;
   isBigQueryView?: boolean;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionClick, onNavigateToBigQuery, isBigQueryView = false }) => {
+export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionClick, onNavigateToBigQuery, onNavigateToDataplex, isBigQueryView = false }) => {
   const pendingCount = suggestions.filter(s => s.status === SuggestionStatus.PENDING).length;
   const hasPending = pendingCount > 0;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -46,7 +47,10 @@ export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionCl
                 Google Cloud Products
               </div>
               <button
-                onClick={() => setIsMenuOpen(false)}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onNavigateToDataplex?.();
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors text-left group"
               >
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white shadow-sm">

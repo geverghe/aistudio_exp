@@ -402,6 +402,7 @@ function App() {
         suggestions={suggestions}
         onSuggestionClick={handleTopBarNotificationClick}
         onNavigateToBigQuery={() => setCurrentView(ViewState.BIGQUERY)}
+        onNavigateToDataplex={() => setCurrentView(ViewState.DASHBOARD)}
         isBigQueryView={currentView === ViewState.BIGQUERY}
       />
       <div className="flex flex-1 overflow-hidden">
