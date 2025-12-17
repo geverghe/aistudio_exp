@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { 
   ZoomIn, ZoomOut, Maximize2, Filter, Search, Layers, 
   ChevronDown, ChevronRight, Box, Database, BarChart3,
-  Move, Grid, List
+  Move, Grid, List, Eye, EyeOff, Focus, Target
 } from 'lucide-react';
 import { Entity, Relationship, EntityType } from '../types';
 
@@ -124,9 +124,18 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set(Object.keys(CATEGORY_COLORS)));
   const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(Object.keys(CATEGORY_COLORS)));
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  const [showSemanticLayer, setShowSemanticLayer] = useState(true);
+  const [showPhysicalLayer, setShowPhysicalLayer] = useState(false);
+  
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [customPositions, setCustomPositions] = useState<Record<string, { x: number; y: number }>>({});
+  
+  const [focusedCategory, setFocusedCategory] = useState<string | null>(null);
 
   const categories = useMemo(() => {
     const cats: Record<string, Entity[]> = {};
@@ -149,7 +158,7 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
     });
   }, [entities, selectedCategories, searchQuery]);
 
-  const nodePositions = useMemo(() => {
+  const baseNodePositions = useMemo(() => {
     const positions: Record<string, NodePosition> = {};
     const categoryOrder = Object.keys(CATEGORY_COLORS);
     const categoryAngles: Record<string, number> = {};
@@ -191,6 +200,14 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
     return positions;
   }, [filteredEntities]);
 
+  const getNodePosition = (entityId: string): NodePosition | undefined => {
+    if (customPositions[entityId]) {
+      const base = baseNodePositions[entityId];
+      return base ? { ...base, ...customPositions[entityId] } : undefined;
+    }
+    return baseNodePositions[entityId];
+  };
+
   const visibleRelationships = useMemo(() => {
     const visibleEntityIds = new Set(filteredEntities.map(e => e.id));
     return relationships.filter(rel => 
@@ -199,20 +216,49 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
   }, [relationships, filteredEntities]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (draggingNodeId) return;
     if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'svg') {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+    if (draggingNodeId) {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const mouseX = (e.clientX - rect.left - pan.x) / zoom;
+      const mouseY = (e.clientY - rect.top - pan.y) / zoom;
+      setCustomPositions(prev => ({
+        ...prev,
+        [draggingNodeId]: {
+          x: mouseX - dragOffset.x,
+          y: mouseY - dragOffset.y
+        }
+      }));
+    } else if (isPanning) {
+      setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
     }
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
+    setIsPanning(false);
+    setDraggingNodeId(null);
+  };
+
+  const handleNodeMouseDown = (e: React.MouseEvent, entityId: string) => {
+    e.stopPropagation();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const pos = getNodePosition(entityId);
+    if (!pos) return;
+    
+    const mouseX = (e.clientX - rect.left - pan.x) / zoom;
+    const mouseY = (e.clientY - rect.top - pan.y) / zoom;
+    
+    setDraggingNodeId(entityId);
+    setDragOffset({ x: mouseX - pos.x, y: mouseY - pos.y });
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -248,6 +294,48 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
   const resetView = () => {
     setZoom(0.8);
     setPan({ x: 0, y: 0 });
+    setFocusedCategory(null);
+  };
+
+  const focusOnCategory = (category: string) => {
+    const categoryEntities = filteredEntities.filter(e => getEntityCategory(e.id) === category);
+    if (categoryEntities.length === 0) return;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    categoryEntities.forEach(entity => {
+      const pos = getNodePosition(entity.id);
+      if (pos) {
+        minX = Math.min(minX, pos.x);
+        maxX = Math.max(maxX, pos.x);
+        minY = Math.min(minY, pos.y);
+        maxY = Math.max(maxY, pos.y);
+      }
+    });
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    
+    const containerWidth = containerRef.current?.clientWidth || 800;
+    const containerHeight = containerRef.current?.clientHeight || 600;
+    
+    const newZoom = 1.2;
+    setPan({
+      x: containerWidth / 2 - centerX * newZoom,
+      y: containerHeight / 2 - centerY * newZoom
+    });
+    setZoom(newZoom);
+    setFocusedCategory(category);
+  };
+
+  const selectOnlyCategory = (category: string) => {
+    setSelectedCategories(new Set([category]));
+    focusOnCategory(category);
+  };
+
+  const showAllCategories = () => {
+    setSelectedCategories(new Set(Object.keys(CATEGORY_COLORS)));
+    setFocusedCategory(null);
+    resetView();
   };
 
   return (
@@ -271,6 +359,13 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
             <span className="text-xs font-semibold text-gray-500 uppercase">Categories</span>
             <div className="flex gap-1">
               <button
+                onClick={showAllCategories}
+                className="p-1 rounded text-gray-400 hover:bg-gray-100"
+                title="Show all categories"
+              >
+                <Maximize2 size={14} />
+              </button>
+              <button
                 onClick={() => setViewMode('graph')}
                 className={`p-1 rounded ${viewMode === 'graph' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100'}`}
               >
@@ -289,29 +384,64 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
               const visibleCount = ents.filter((e: Entity) => 
                 !searchQuery || e.name.toLowerCase().includes(searchQuery.toLowerCase())
               ).length;
+              const isActive = selectedCategories.has(category);
+              const isFocused = focusedCategory === category;
               return (
-                <div key={category}>
+                <div key={category} className="flex items-center gap-1">
                   <button
                     onClick={() => toggleCategory(category)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-gray-50"
+                    className={`flex-1 flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-gray-50 ${isFocused ? 'ring-1 ring-blue-400' : ''}`}
                   >
                     <div 
                       className="w-3 h-3 rounded-sm border-2"
                       style={{ 
-                        backgroundColor: selectedCategories.has(category) ? CATEGORY_COLORS[category]?.bg : 'transparent',
+                        backgroundColor: isActive ? CATEGORY_COLORS[category]?.bg : 'transparent',
                         borderColor: CATEGORY_COLORS[category]?.border 
                       }}
                     />
-                    <span className={selectedCategories.has(category) ? 'text-gray-900' : 'text-gray-400'}>
+                    <span className={isActive ? 'text-gray-900' : 'text-gray-400'}>
                       {category}
                     </span>
                     <span className="ml-auto text-xs text-gray-400">
-                      {selectedCategories.has(category) ? visibleCount : ents.length}
+                      {isActive ? visibleCount : ents.length}
                     </span>
+                  </button>
+                  <button
+                    onClick={() => selectOnlyCategory(category)}
+                    className="p-1 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-600"
+                    title={`Focus on ${category}`}
+                  >
+                    <Target size={12} />
                   </button>
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        <div className="p-3 border-b border-gray-200">
+          <span className="text-xs font-semibold text-gray-500 uppercase mb-2 block">Layers</span>
+          <div className="space-y-1">
+            <label className="flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showSemanticLayer}
+                onChange={(e) => setShowSemanticLayer(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <Database size={14} className="text-blue-600" />
+              <span>Semantic Layer</span>
+            </label>
+            <label className="flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showPhysicalLayer}
+                onChange={(e) => setShowPhysicalLayer(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              <Box size={14} className="text-green-600" />
+              <span>Physical Layer</span>
+            </label>
           </div>
         </div>
 
@@ -370,6 +500,11 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
             <span className="text-sm font-medium text-gray-700">
               {filteredEntities.length} entities, {visibleRelationships.length} relationships
             </span>
+            {focusedCategory && (
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                Focused: {focusedCategory}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -395,12 +530,20 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
             >
               <Maximize2 size={16} />
             </button>
+            <div className="w-px h-4 bg-gray-300 mx-1" />
+            <button
+              onClick={() => setCustomPositions({})}
+              className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+              title="Reset node positions"
+            >
+              <Move size={16} />
+            </button>
           </div>
         </div>
 
         <div 
           ref={containerRef}
-          className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
+          className={`flex-1 overflow-hidden ${draggingNodeId ? 'cursor-grabbing' : isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -412,7 +555,7 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
             height="100%" 
             style={{ 
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: 'center center'
+              transformOrigin: '0 0'
             }}
           >
             <defs>
@@ -426,16 +569,27 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
               >
                 <polygon points="0 0, 6 2, 0 4" fill="#9ca3af" />
               </marker>
+              <marker
+                id="arrowhead-physical"
+                markerWidth="6"
+                markerHeight="4"
+                refX="5"
+                refY="2"
+                orient="auto"
+              >
+                <polygon points="0 0, 6 2, 0 4" fill="#10b981" />
+              </marker>
             </defs>
 
-            {visibleRelationships.map(rel => {
-              const sourcePos = nodePositions[rel.sourceEntityId];
-              const targetPos = nodePositions[rel.targetEntityId];
+            {showSemanticLayer && visibleRelationships.map(rel => {
+              const sourcePos = getNodePosition(rel.sourceEntityId);
+              const targetPos = getNodePosition(rel.targetEntityId);
               if (!sourcePos || !targetPos) return null;
 
               const dx = targetPos.x - sourcePos.x;
               const dy = targetPos.y - sourcePos.y;
               const len = Math.sqrt(dx * dx + dy * dy);
+              if (len === 0) return null;
               const unitX = dx / len;
               const unitY = dy / len;
               
@@ -456,56 +610,111 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
                     d={`M ${startX} ${startY} Q ${midX + perpX} ${midY + perpY} ${endX} ${endY}`}
                     fill="none"
                     stroke="#d1d5db"
-                    strokeWidth="1"
+                    strokeWidth="1.5"
                     markerEnd="url(#arrowhead)"
+                    opacity="0.8"
                   />
                 </g>
               );
             })}
 
-            {filteredEntities.map(entity => {
-              const pos = nodePositions[entity.id];
+            {showPhysicalLayer && filteredEntities.map(entity => {
+              const pos = getNodePosition(entity.id);
+              if (!pos || !entity.properties?.some(p => p.binding)) return null;
+
+              return entity.properties?.filter(p => p.binding).map((prop, idx) => {
+                const bindingParts = prop.binding?.split('.') || [];
+                const tableName = bindingParts[0] || 'Unknown Table';
+                
+                return (
+                  <g key={`${entity.id}-binding-${idx}`}>
+                    <line
+                      x1={pos.x}
+                      y1={pos.y + 25}
+                      x2={pos.x}
+                      y2={pos.y + 60 + idx * 25}
+                      stroke="#10b981"
+                      strokeWidth="1"
+                      strokeDasharray="4,2"
+                      opacity="0.6"
+                    />
+                    <rect
+                      x={pos.x - 50}
+                      y={pos.y + 50 + idx * 25}
+                      width="100"
+                      height="20"
+                      rx="3"
+                      fill="#d1fae5"
+                      stroke="#10b981"
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={pos.x}
+                      y={pos.y + 63 + idx * 25}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fill="#065f46"
+                    >
+                      {tableName.length > 14 ? tableName.substring(0, 12) + '...' : tableName}
+                    </text>
+                  </g>
+                );
+              });
+            })}
+
+            {showSemanticLayer && filteredEntities.map(entity => {
+              const pos = getNodePosition(entity.id);
               if (!pos) return null;
               const category = getEntityCategory(entity.id);
               const colors = CATEGORY_COLORS[category] || CATEGORY_COLORS['Other'];
               const isSelected = selectedEntityId === entity.id;
+              const isDragging = draggingNodeId === entity.id;
 
               return (
                 <g 
                   key={entity.id}
                   transform={`translate(${pos.x}, ${pos.y})`}
-                  onClick={() => onSelectEntity?.(entity)}
-                  style={{ cursor: 'pointer' }}
+                  onMouseDown={(e) => handleNodeMouseDown(e, entity.id)}
+                  onClick={(e) => {
+                    if (!isDragging) {
+                      e.stopPropagation();
+                      onSelectEntity?.(entity);
+                    }
+                  }}
+                  style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                 >
                   <rect
-                    x="-55"
-                    y="-18"
-                    width="110"
-                    height="36"
-                    rx="4"
+                    x="-60"
+                    y="-22"
+                    width="120"
+                    height="44"
+                    rx="6"
                     fill={colors.bg}
                     stroke={isSelected ? '#3b82f6' : colors.border}
-                    strokeWidth={isSelected ? 2 : 1}
+                    strokeWidth={isSelected ? 2.5 : 1.5}
+                    className={`transition-all ${isDragging ? 'drop-shadow-lg' : ''}`}
                   />
                   <text
                     x="0"
-                    y="0"
+                    y="-4"
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fontSize="10"
-                    fontWeight="500"
+                    fontSize="11"
+                    fontWeight="600"
                     fill={colors.text}
+                    style={{ pointerEvents: 'none' }}
                   >
                     {entity.name.length > 14 ? entity.name.substring(0, 12) + '...' : entity.name}
                   </text>
                   <text
                     x="0"
-                    y="11"
+                    y="10"
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fontSize="8"
+                    fontSize="9"
                     fill={colors.text}
                     opacity="0.7"
+                    style={{ pointerEvents: 'none' }}
                   >
                     {entity.type}
                   </text>
@@ -515,16 +724,33 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
           </svg>
         </div>
 
-        <div className="h-8 bg-white border-t border-gray-200 flex items-center justify-center gap-4 px-4">
-          {Object.entries(CATEGORY_COLORS).map(([category, colors]) => (
-            <div key={category} className="flex items-center gap-1.5">
-              <div 
-                className="w-3 h-3 rounded-sm border"
-                style={{ backgroundColor: colors.bg, borderColor: colors.border }}
-              />
-              <span className="text-xs text-gray-500">{category}</span>
-            </div>
-          ))}
+        <div className="h-10 bg-white border-t border-gray-200 flex items-center justify-between px-4">
+          <div className="flex items-center gap-4">
+            {Object.entries(CATEGORY_COLORS).filter(([cat]) => cat !== 'Other').map(([category, colors]) => (
+              <button
+                key={category}
+                onClick={() => selectOnlyCategory(category)}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded hover:bg-gray-100 transition-colors ${
+                  focusedCategory === category ? 'ring-1 ring-blue-400 bg-blue-50' : ''
+                }`}
+              >
+                <div 
+                  className="w-3 h-3 rounded-sm border"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                />
+                <span className="text-xs text-gray-600">{category}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="flex items-center gap-1">
+              <Move size={12} /> Drag to pan
+            </span>
+            <span>|</span>
+            <span>Scroll to zoom</span>
+            <span>|</span>
+            <span>Drag nodes to reposition</span>
+          </div>
         </div>
       </div>
     </div>
