@@ -141,7 +141,7 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack, models =
   }
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex bg-white overflow-hidden" style={{ height: 'calc(100vh - 56px)' }}>
       {/* Left Icon Sidebar */}
       <div className="w-12 bg-gray-50 border-r border-gray-200 flex flex-col items-center py-3 gap-1">
         <button className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mb-1">
@@ -163,7 +163,7 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack, models =
       </div>
 
       {/* Explorer Panel */}
-      <div className="w-56 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-56 bg-white border-r border-gray-200 flex flex-col min-h-0">
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
           <span className="font-medium text-gray-900">Explorer</span>
           <button className="text-blue-600 text-sm font-medium hover:text-blue-700">+ Add data</button>
@@ -224,7 +224,7 @@ export const BigQueryAgents: React.FC<BigQueryAgentsProps> = ({ onBack, models =
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* Tab Bar */}
         <div className="h-10 bg-gray-100 border-b border-gray-200 flex items-center px-2 gap-1">
           <button className="h-8 px-3 flex items-center gap-2 text-sm text-gray-600 hover:bg-gray-200 rounded">
