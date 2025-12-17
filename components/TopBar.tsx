@@ -5,9 +5,10 @@ import { EntityUpdateSuggestion, SuggestionStatus } from '../types';
 interface TopBarProps {
   suggestions?: EntityUpdateSuggestion[];
   onSuggestionClick?: () => void;
+  onNavigateToBigQuery?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionClick }) => {
+export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionClick, onNavigateToBigQuery }) => {
   const pendingCount = suggestions.filter(s => s.status === SuggestionStatus.PENDING).length;
   const hasPending = pendingCount > 0;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -57,7 +58,10 @@ export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionCl
                 <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
               </button>
               <button
-                onClick={() => setIsMenuOpen(false)}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onNavigateToBigQuery?.();
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors text-left group"
               >
                 <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow-sm">

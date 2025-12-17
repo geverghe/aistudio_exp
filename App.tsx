@@ -4,6 +4,7 @@ import { SideNav } from './components/SideNav';
 import { Dashboard } from './components/Dashboard';
 import { SemanticBuilder } from './components/SemanticBuilder';
 import { AgentChat } from './components/AgentChat';
+import { BigQueryAgents } from './components/BigQueryAgents';
 import { ViewState, SemanticModel, SemanticModelCollection, EntityType, PropertyType, EntityUpdateSuggestion, SuggestionStatus, SuggestionSource, SuggestionType, DescriptionHistory, Property } from './types';
 
 // Mock initial data based on the PDF examples (Revenue Domain)
@@ -400,9 +401,12 @@ function App() {
       <TopBar 
         suggestions={suggestions}
         onSuggestionClick={handleTopBarNotificationClick}
+        onNavigateToBigQuery={() => setCurrentView(ViewState.BIGQUERY)}
       />
       <div className="flex flex-1 overflow-hidden">
-        <SideNav currentView={currentView} onNavigate={setCurrentView} />
+        {currentView !== ViewState.BIGQUERY && (
+          <SideNav currentView={currentView} onNavigate={setCurrentView} />
+        )}
         <main className="flex-1 overflow-auto relative">
             {currentView === ViewState.DASHBOARD && <Dashboard />}
             {currentView === ViewState.SEMANTIC_MODELER && (
@@ -437,6 +441,9 @@ function App() {
             )}
             {currentView === ViewState.AGENT_CHAT && (
                 <AgentChat model={activeModel} />
+            )}
+            {currentView === ViewState.BIGQUERY && (
+                <BigQueryAgents onBack={() => setCurrentView(ViewState.DASHBOARD)} />
             )}
         </main>
       </div>

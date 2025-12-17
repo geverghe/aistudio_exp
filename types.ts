@@ -1,7 +1,17 @@
 export enum ViewState {
   DASHBOARD = 'DASHBOARD',
   SEMANTIC_MODELER = 'SEMANTIC_MODELER',
-  AGENT_CHAT = 'AGENT_CHAT'
+  AGENT_CHAT = 'AGENT_CHAT',
+  BIGQUERY = 'BIGQUERY'
+}
+
+export interface DataAgent {
+  id: string;
+  name: string;
+  description: string;
+  dataSources: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export enum EntityType {
