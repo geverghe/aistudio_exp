@@ -59,15 +59,6 @@ export const SideNav: React.FC<SideNavProps> = ({ currentView, onNavigate }) => 
               <span>Data Products</span>
             </div>
 
-            <div className="mt-4 px-4 text-xs font-semibold text-gray-500 mb-1">SEMANTICS (AI)</div>
-            <div 
-                onClick={() => onNavigate(ViewState.SEMANTIC_MODELER)}
-                className={navItemClass(currentView === ViewState.SEMANTIC_MODELER)}
-            >
-              <Workflow size={18} />
-              <span>Semantic Model</span>
-            </div>
-
             <div className="mt-4 px-4 text-xs font-semibold text-gray-500 mb-1">MANAGE METADATA</div>
             <div className={navItemClass(false)}>
               <Book size={18} />
@@ -76,6 +67,13 @@ export const SideNav: React.FC<SideNavProps> = ({ currentView, onNavigate }) => 
             <div className={navItemClass(false)}>
               <LayoutTemplate size={18} />
               <span>Glossaries</span>
+            </div>
+            <div 
+                onClick={() => onNavigate(ViewState.SEMANTIC_MODELER)}
+                className={navItemClass(currentView === ViewState.SEMANTIC_MODELER)}
+            >
+              <Workflow size={18} />
+              <span>Semantic Model</span>
             </div>
           </div>
         )}
