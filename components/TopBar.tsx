@@ -6,9 +6,10 @@ interface TopBarProps {
   suggestions?: EntityUpdateSuggestion[];
   onSuggestionClick?: () => void;
   onNavigateToBigQuery?: () => void;
+  isBigQueryView?: boolean;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionClick, onNavigateToBigQuery }) => {
+export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionClick, onNavigateToBigQuery, isBigQueryView = false }) => {
   const pendingCount = suggestions.filter(s => s.status === SuggestionStatus.PENDING).length;
   const hasPending = pendingCount > 0;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -82,7 +83,7 @@ export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionCl
              <path d="M4 12C4 16.41 7.59 20 12 20V12H4Z" fill="#34A853"/>
            </svg>
            <span className="text-lg font-normal text-gray-700 hidden sm:block">Google Cloud</span>
-           <span className="text-lg text-gray-400 hidden sm:block">Dataplex</span>
+           <span className="text-lg text-gray-400 hidden sm:block">{isBigQueryView ? 'BigQuery' : 'Dataplex'}</span>
         </div>
         
         <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-md px-3 py-1.5 border border-gray-200 ml-4 cursor-pointer hover:bg-gray-200 transition-colors">
