@@ -3222,11 +3222,11 @@ const ModelSettingsPage: React.FC<{
           />
         </div>
 
-        {/* Query Routing Configuration */}
+        {/* Engine Configuration */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Database size={18} className="text-blue-500" />
-            <h2 className="text-lg font-semibold text-gray-800">Query Routing</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Engine</h2>
           </div>
           <p className="text-sm text-gray-500 mb-4">Configure which engine and project queries will be routed to.</p>
           
@@ -3323,25 +3323,6 @@ const ModelSettingsPage: React.FC<{
             )}
 
             {/* Additional settings based on engine */}
-            {model.queryRouting?.engine === 'bigquery' && model.queryRouting?.projectId && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Default Dataset</label>
-                <input
-                  type="text"
-                  value={model.queryRouting?.dataset || ''}
-                  onChange={(e) => setModel(prev => ({ 
-                    ...prev, 
-                    queryRouting: { 
-                      ...prev.queryRouting!,
-                      dataset: e.target.value 
-                    } 
-                  }))}
-                  placeholder="e.g., semantic_layer"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            )}
-
             {model.queryRouting?.engine === 'spanner' && model.queryRouting?.projectId && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Instance ID</label>
@@ -3373,7 +3354,6 @@ const ModelSettingsPage: React.FC<{
                 <p className={`text-xs ${model.queryRouting.engine === 'bigquery' ? 'text-blue-600' : 'text-green-600'}`}>
                   Queries will be routed to <code className={`px-1 rounded ${model.queryRouting.engine === 'bigquery' ? 'bg-blue-100' : 'bg-green-100'}`}>
                     {model.queryRouting.projectId}
-                    {model.queryRouting.engine === 'bigquery' && model.queryRouting.dataset && `.${model.queryRouting.dataset}`}
                     {model.queryRouting.engine === 'spanner' && model.queryRouting.instance && ` / ${model.queryRouting.instance}`}
                   </code>
                 </p>
