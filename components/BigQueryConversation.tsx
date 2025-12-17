@@ -234,7 +234,7 @@ Provide a brief, helpful response explaining what query you would write and what
   };
 
   return (
-    <div className="flex h-full bg-white overflow-hidden">
+    <div className="flex bg-white overflow-hidden" style={{ height: 'calc(100vh - 56px)' }}>
       {/* Left Icon Sidebar */}
       <div className="w-12 bg-gray-50 border-r border-gray-200 flex flex-col items-center py-3 gap-1">
         <button className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mb-1">
