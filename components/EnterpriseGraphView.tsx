@@ -576,23 +576,33 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
             <defs>
               <marker
                 id="arrowhead"
-                markerWidth="6"
-                markerHeight="4"
-                refX="5"
-                refY="2"
+                markerWidth="10"
+                markerHeight="7"
+                refX="9"
+                refY="3.5"
                 orient="auto"
               >
-                <polygon points="0 0, 6 2, 0 4" fill="#9ca3af" />
+                <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
+              </marker>
+              <marker
+                id="arrowhead-rel"
+                markerWidth="10"
+                markerHeight="7"
+                refX="9"
+                refY="3.5"
+                orient="auto"
+              >
+                <polygon points="0 0, 10 3.5, 0 7" fill="#0EA5E9" />
               </marker>
               <marker
                 id="arrowhead-physical"
-                markerWidth="6"
-                markerHeight="4"
-                refX="5"
-                refY="2"
+                markerWidth="8"
+                markerHeight="6"
+                refX="7"
+                refY="3"
                 orient="auto"
               >
-                <polygon points="0 0, 6 2, 0 4" fill="#10b981" />
+                <polygon points="0 0, 8 3, 0 6" fill="#A855F7" />
               </marker>
             </defs>
 
@@ -601,34 +611,53 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
               const targetPos = getNodePosition(rel.targetEntityId);
               if (!sourcePos || !targetPos) return null;
 
-              const dx = targetPos.x - sourcePos.x;
-              const dy = targetPos.y - sourcePos.y;
-              const len = Math.sqrt(dx * dx + dy * dy);
-              if (len === 0) return null;
-              const unitX = dx / len;
-              const unitY = dy / len;
+              const startX = sourcePos.x + 100;
+              const startY = sourcePos.y + 35;
+              const endX = targetPos.x - 100;
+              const endY = targetPos.y + 35;
               
-              const startX = sourcePos.x + unitX * 35;
-              const startY = sourcePos.y + unitY * 20;
-              const endX = targetPos.x - unitX * 40;
-              const endY = targetPos.y - unitY * 25;
-
+              const cp1x = startX + 60;
+              const cp1y = startY;
+              const cp2x = endX - 60;
+              const cp2y = endY;
+              
+              const d = `M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`;
               const midX = (startX + endX) / 2;
               const midY = (startY + endY) / 2;
-              const curvature = 20;
-              const perpX = -unitY * curvature;
-              const perpY = unitX * curvature;
 
               return (
                 <g key={rel.id}>
                   <path
-                    d={`M ${startX} ${startY} Q ${midX + perpX} ${midY + perpY} ${endX} ${endY}`}
+                    d={d}
                     fill="none"
-                    stroke="#d1d5db"
-                    strokeWidth="1.5"
-                    markerEnd="url(#arrowhead)"
-                    opacity="0.8"
+                    stroke="#0EA5E9"
+                    strokeWidth="2"
+                    markerEnd="url(#arrowhead-rel)"
                   />
+                  {rel.label && (
+                    <g transform={`translate(${midX}, ${midY - 12})`}>
+                      <rect
+                        x="-35"
+                        y="-8"
+                        width="70"
+                        height="16"
+                        rx="8"
+                        fill="white"
+                        stroke="#BFDBFE"
+                        strokeWidth="1"
+                      />
+                      <text
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize="9"
+                        fontWeight="500"
+                        fill="#0284C7"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {rel.type === 'ONE_TO_MANY' ? '1:N' : rel.type === 'MANY_TO_ONE' ? 'N:1' : rel.type === 'MANY_TO_MANY' ? 'N:N' : '1:1'}
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             })}
@@ -686,54 +715,64 @@ export const EnterpriseGraphView: React.FC<EnterpriseGraphViewProps> = ({
               const isDragging = draggingNodeId === entity.id;
 
               return (
-                <g 
+                <foreignObject
                   key={entity.id}
-                  transform={`translate(${pos.x}, ${pos.y})`}
-                  onMouseDown={(e) => handleNodeMouseDown(e, entity.id)}
-                  onClick={(e) => {
-                    if (!isDragging) {
-                      e.stopPropagation();
-                      onSelectEntity?.(entity);
-                    }
-                  }}
+                  x={pos.x - 100}
+                  y={pos.y}
+                  width="200"
+                  height="70"
+                  className="overflow-visible"
                   style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                 >
-                  <rect
-                    x="-60"
-                    y="-22"
-                    width="120"
-                    height="44"
-                    rx="6"
-                    fill={colors.bg}
-                    stroke={isSelected ? '#3b82f6' : colors.border}
-                    strokeWidth={isSelected ? 2.5 : 1.5}
-                    className={`transition-all ${isDragging ? 'drop-shadow-lg' : ''}`}
-                  />
-                  <text
-                    x="0"
-                    y="-4"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="11"
-                    fontWeight="600"
-                    fill={colors.text}
-                    style={{ pointerEvents: 'none' }}
+                  <div
+                    onMouseDown={(e) => handleNodeMouseDown(e, entity.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!isDragging) {
+                        onSelectEntity?.(entity);
+                      }
+                    }}
+                    className={`
+                      w-[200px] rounded-lg shadow-sm border-2 p-3 transition-all hover:shadow-md select-none
+                      ${isDragging ? 'shadow-lg ring-2 ring-blue-300' : ''}
+                      ${isSelected ? 'ring-2 ring-sky-200' : ''}
+                    `}
+                    style={{ 
+                      cursor: isDragging ? 'grabbing' : 'grab',
+                      backgroundColor: colors.bg,
+                      borderColor: isSelected ? '#0ea5e9' : colors.border
+                    }}
                   >
-                    {entity.name.length > 14 ? entity.name.substring(0, 12) + '...' : entity.name}
-                  </text>
-                  <text
-                    x="0"
-                    y="10"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="9"
-                    fill={colors.text}
-                    opacity="0.7"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {entity.type}
-                  </text>
-                </g>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div 
+                        className="p-1.5 rounded"
+                        style={{ backgroundColor: `${colors.border}20` }}
+                      >
+                        {entity.type === EntityType.DIMENSION ? (
+                          <Box size={14} style={{ color: colors.border }} />
+                        ) : entity.type === EntityType.FACT ? (
+                          <BarChart3 size={14} style={{ color: colors.border }} />
+                        ) : (
+                          <Database size={14} style={{ color: colors.border }} />
+                        )}
+                      </div>
+                      <div 
+                        className="font-semibold text-sm truncate"
+                        style={{ color: colors.text }}
+                        title={entity.name}
+                      >
+                        {entity.name}
+                      </div>
+                    </div>
+                    <div className="text-[10px] pl-8" style={{ color: colors.text, opacity: 0.7 }}>
+                      {entity.properties?.length || 0} Properties
+                    </div>
+                    <div 
+                      className="absolute -right-1 top-1/2 w-2 h-2 rounded-full border border-white transform -translate-y-1/2"
+                      style={{ backgroundColor: colors.border }}
+                    />
+                  </div>
+                </foreignObject>
               );
             })}
           </svg>
