@@ -3208,7 +3208,7 @@ const ModelSettingsPage: React.FC<{
         </div>
 
         {/* Glossary Terms Section */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <BookOpen size={18} className="text-purple-500" />
             <h2 className="text-lg font-semibold text-gray-800">Glossary Terms</h2>
@@ -3219,6 +3219,166 @@ const ModelSettingsPage: React.FC<{
             onChange={(glossaryTerms) => setModel(prev => ({ ...prev, glossaryTerms }))}
             label=""
           />
+        </div>
+
+        {/* Query Routing Configuration */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Database size={18} className="text-blue-500" />
+            <h2 className="text-lg font-semibold text-gray-800">Query Routing</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">Configure which engine and project queries will be routed to.</p>
+          
+          <div className="space-y-5">
+            {/* Engine Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Query Engine</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setModel(prev => ({ 
+                    ...prev, 
+                    queryRouting: { 
+                      ...prev.queryRouting, 
+                      engine: 'bigquery',
+                      projectId: prev.queryRouting?.projectId || ''
+                    } 
+                  }))}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    model.queryRouting?.engine === 'bigquery'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    model.queryRouting?.engine === 'bigquery'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <Database size={20} />
+                  </div>
+                  <div className="text-left">
+                    <div className={`font-medium ${model.queryRouting?.engine === 'bigquery' ? 'text-blue-700' : 'text-gray-700'}`}>
+                      BigQuery
+                    </div>
+                    <div className="text-xs text-gray-500">Google Cloud BigQuery</div>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => setModel(prev => ({ 
+                    ...prev, 
+                    queryRouting: { 
+                      ...prev.queryRouting, 
+                      engine: 'spanner',
+                      projectId: prev.queryRouting?.projectId || ''
+                    } 
+                  }))}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    model.queryRouting?.engine === 'spanner'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    model.queryRouting?.engine === 'spanner'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <Layers size={20} />
+                  </div>
+                  <div className="text-left">
+                    <div className={`font-medium ${model.queryRouting?.engine === 'spanner' ? 'text-green-700' : 'text-gray-700'}`}>
+                      Spanner
+                    </div>
+                    <div className="text-xs text-gray-500">Cloud Spanner Graph</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Project Selection */}
+            {model.queryRouting?.engine && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">GCP Project</label>
+                <select
+                  value={model.queryRouting?.projectId || ''}
+                  onChange={(e) => setModel(prev => ({ 
+                    ...prev, 
+                    queryRouting: { 
+                      ...prev.queryRouting!,
+                      projectId: e.target.value 
+                    } 
+                  }))}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                >
+                  <option value="">Select a project...</option>
+                  <option value="vergheseg-sandbox">vergheseg-sandbox</option>
+                  <option value="dataplex-pegasus">dataplex-pegasus</option>
+                  <option value="bigquery-public-data">bigquery-public-data</option>
+                  <option value="concord-prod">concord-prod</option>
+                  <option value="analytics-platform">analytics-platform</option>
+                </select>
+              </div>
+            )}
+
+            {/* Additional settings based on engine */}
+            {model.queryRouting?.engine === 'bigquery' && model.queryRouting?.projectId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Default Dataset</label>
+                <input
+                  type="text"
+                  value={model.queryRouting?.dataset || ''}
+                  onChange={(e) => setModel(prev => ({ 
+                    ...prev, 
+                    queryRouting: { 
+                      ...prev.queryRouting!,
+                      dataset: e.target.value 
+                    } 
+                  }))}
+                  placeholder="e.g., semantic_layer"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            )}
+
+            {model.queryRouting?.engine === 'spanner' && model.queryRouting?.projectId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Instance ID</label>
+                <input
+                  type="text"
+                  value={model.queryRouting?.instance || ''}
+                  onChange={(e) => setModel(prev => ({ 
+                    ...prev, 
+                    queryRouting: { 
+                      ...prev.queryRouting!,
+                      instance: e.target.value 
+                    } 
+                  }))}
+                  placeholder="e.g., my-spanner-instance"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            )}
+
+            {/* Status indicator */}
+            {model.queryRouting?.engine && model.queryRouting?.projectId && (
+              <div className={`rounded-xl p-4 text-sm ${
+                model.queryRouting.engine === 'bigquery' ? 'bg-blue-50 text-blue-800' : 'bg-green-50 text-green-800'
+              }`}>
+                <div className="font-medium mb-1 flex items-center gap-2">
+                  <Check size={16} />
+                  Query Routing Configured
+                </div>
+                <p className={`text-xs ${model.queryRouting.engine === 'bigquery' ? 'text-blue-600' : 'text-green-600'}`}>
+                  Queries will be routed to <code className={`px-1 rounded ${model.queryRouting.engine === 'bigquery' ? 'bg-blue-100' : 'bg-green-100'}`}>
+                    {model.queryRouting.projectId}
+                    {model.queryRouting.engine === 'bigquery' && model.queryRouting.dataset && `.${model.queryRouting.dataset}`}
+                    {model.queryRouting.engine === 'spanner' && model.queryRouting.instance && ` / ${model.queryRouting.instance}`}
+                  </code>
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

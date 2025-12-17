@@ -96,6 +96,15 @@ export interface SemanticModelGraph {
   relationships: Relationship[];
 }
 
+export type QueryEngine = 'bigquery' | 'spanner';
+
+export interface QueryRoutingConfig {
+  engine: QueryEngine;
+  projectId: string;
+  dataset?: string;
+  instance?: string;
+}
+
 export interface SemanticModel extends SemanticModelGraph {
   id: string;
   name: string;
@@ -106,6 +115,7 @@ export interface SemanticModel extends SemanticModelGraph {
   aspects?: AspectAssignment[];
   glossaryTerms?: GlossaryTerm[];
   gitFile?: string;
+  queryRouting?: QueryRoutingConfig;
   createdAt?: Date;
   updatedAt?: Date;
 }
