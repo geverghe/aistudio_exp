@@ -1,5 +1,5 @@
-import React from 'react';
-import { Menu, Search, Bell, HelpCircle, Grid } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Menu, Search, Bell, HelpCircle, Grid, Database, Layers, ChevronRight } from 'lucide-react';
 import { EntityUpdateSuggestion, SuggestionStatus } from '../types';
 
 interface TopBarProps {
@@ -10,13 +10,68 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({ suggestions = [], onSuggestionClick }) => {
   const pendingCount = suggestions.filter(s => s.status === SuggestionStatus.PENDING).length;
   const hasPending = pendingCount > 0;
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   return (
     <header className="h-12 bg-white border-b border-gray-200 flex items-center px-4 justify-between sticky top-0 z-50 shadow-sm">
       <div className="flex items-center gap-4 flex-1">
-        <button className="text-gray-600 hover:bg-gray-100 p-1 rounded-full">
-          <Menu size={24} />
-        </button>
+        <div className="relative" ref={menuRef}>
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`text-gray-600 hover:bg-gray-100 p-1 rounded-full transition-colors ${isMenuOpen ? 'bg-gray-100' : ''}`}
+          >
+            <Menu size={24} />
+          </button>
+          
+          {isMenuOpen && (
+            <div className="absolute left-0 top-full mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Google Cloud Products
+              </div>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors text-left group"
+              >
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white shadow-sm">
+                  <Layers size={18} />
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium">Dataplex</div>
+                  <div className="text-xs text-gray-400 group-hover:text-blue-500">Unified data management</div>
+                </div>
+                <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
+              </button>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors text-left group"
+              >
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow-sm">
+                  <Database size={18} />
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium">BigQuery</div>
+                  <div className="text-xs text-gray-400 group-hover:text-blue-500">Data warehouse & analytics</div>
+                </div>
+                <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
+              </button>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 4V12H20C19.99 7.59 16.41 4.01 12 4Z" fill="#4285F4"/>
