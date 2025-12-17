@@ -6,6 +6,7 @@ import { WikiEditor } from './WikiEditor';
 import { AspectSelector, AVAILABLE_ASPECT_TYPES } from './AspectSelector';
 import { GlossarySelector } from './GlossarySelector';
 import { SuggestionPanel } from './SuggestionPanel';
+import { EnterpriseGraphView } from './EnterpriseGraphView';
 
 // Mock Schema for BigQuery Tables to power the dropdowns
 const MOCK_BQ_SCHEMA: Record<string, Array<{ name: string, type: string }>> = {
@@ -680,16 +681,25 @@ export const SemanticBuilder: React.FC<SemanticBuilderProps> = ({
 
       {/* Main Graph Area */}
       <div className="flex-1 relative bg-gray-50/50 h-full overflow-hidden">
-        <GraphView 
-            model={model} 
-            selection={selection} 
-            onSelect={setSelection}
-            suggestions={suggestions}
-            onApproveSuggestion={onApproveSuggestion}
-            onRejectSuggestion={onRejectSuggestion}
-            isSuggestionPanelOpen={isSuggestionPanelOpen}
-            setIsSuggestionPanelOpen={setIsSuggestionPanelOpen}
-        />
+        {model.entities.length >= 20 ? (
+          <EnterpriseGraphView
+            entities={model.entities}
+            relationships={model.relationships}
+            onSelectEntity={(entity) => setSelection({ type: 'ENTITY', id: entity.id })}
+            selectedEntityId={selection?.type === 'ENTITY' ? selection.id : null}
+          />
+        ) : (
+          <GraphView 
+              model={model} 
+              selection={selection} 
+              onSelect={setSelection}
+              suggestions={suggestions}
+              onApproveSuggestion={onApproveSuggestion}
+              onRejectSuggestion={onRejectSuggestion}
+              isSuggestionPanelOpen={isSuggestionPanelOpen}
+              setIsSuggestionPanelOpen={setIsSuggestionPanelOpen}
+          />
+        )}
         
         {/* Floating Actions */}
         <div className="absolute top-4 right-4 flex gap-2 z-10">

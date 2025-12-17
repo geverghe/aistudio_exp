@@ -95,8 +95,8 @@ export interface Relationship {
   targetEntityId: string;
   sourcePropertyId?: string;
   targetPropertyId?: string;
-  type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY';
-  description: string;
+  type: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_ONE' | 'MANY_TO_MANY';
+  description?: string;
   title?: string;
   label?: string;
 }

@@ -6,6 +6,7 @@ import { SemanticBuilder } from './components/SemanticBuilder';
 import { AgentChat } from './components/AgentChat';
 import { BigQueryAgents } from './components/BigQueryAgents';
 import { ViewState, SemanticModel, SemanticModelCollection, EntityType, PropertyType, EntityUpdateSuggestion, SuggestionStatus, SuggestionSource, SuggestionType, DescriptionHistory, Property } from './types';
+import { comprehensiveSupplyChainModel } from './data/supplyChainModel';
 
 // Mock initial data based on the PDF examples (Revenue Domain)
 const INITIAL_MODELS: SemanticModelCollection = {
@@ -62,16 +63,7 @@ const INITIAL_MODELS: SemanticModelCollection = {
       entities: [],
       relationships: []
     },
-    {
-      id: 'model_operations',
-      name: 'Operations Domain',
-      description: 'Supply chain and logistics semantic model',
-      domain: 'Operations',
-      createdAt: new Date('2024-06-01'),
-      updatedAt: new Date('2024-10-15'),
-      entities: [],
-      relationships: []
-    },
+    comprehensiveSupplyChainModel,
     {
       id: 'model_nyc_taxi',
       name: 'NYC Taxi Analytics',
